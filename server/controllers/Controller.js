@@ -8,7 +8,7 @@ const signupUser = async (req, res) => {
     name,
     email,
     password,
-    role = 'student', // default if not provided
+    role = 'student', 
     phone,
     profile_pic,
     bio,
@@ -17,6 +17,8 @@ const signupUser = async (req, res) => {
     experience_years,
     linkedin,
     availability,
+    location,
+    created_at
   } = req.body;
 
   if (!name || !email || !password)
@@ -31,8 +33,8 @@ const signupUser = async (req, res) => {
 
     const insertQuery = `
       INSERT INTO user
-        (name, email, password, role, phone, profile_pic, bio, subject, qualification, experience_years, linkedin, availability)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, email, password, role, phone, profile_pic, bio, subject, qualification, experience_years, linkedin, availability, location, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
@@ -48,6 +50,8 @@ const signupUser = async (req, res) => {
       role === 'teacher' ? experience_years : null,
       role === 'teacher' ? linkedin : null,
       role === 'teacher' ? availability : null,
+      location || null,
+      created_at || new Date()
     ];
 
     db.query(insertQuery, values, (err, result) => {
@@ -86,15 +90,15 @@ const loginUser = (req, res) => {
 
 // Create a course
 const createCourse = (req, res) => {
-  const { title, subject, description, material_url, teacher_id, access_type } = req.body;
+  const { title, subject, description, material_url, teacher_id, access_type, price } = req.body;
 
   if (!teacher_id) {
     return res.status(400).json({ error: 'teacher_id is required' });
   }
 
   const sql = `
-    INSERT INTO courses (title, subject, description, material_url, teacher_id, access_type)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO courses (title, subject, description, material_url, teacher_id, access_type, price)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.query(
@@ -105,7 +109,8 @@ const createCourse = (req, res) => {
       description || null,
       material_url || null,
       teacher_id,
-      access_type || 'free' // default to 'free' if not provided
+      access_type || 'free', 
+      price || null 
     ],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -267,5 +272,27 @@ const deleteUser = (req, res) => {
   });
 };
 
+//profile update
+const updateProfile = (req, res) => {
+  const userId = req.params.id;
+  const { name, email, phone, profile_pic, bio, subject, qualification, experience_years, linkedin, availability, location } = req.body;
 
-module.exports = { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser };
+  const sql = `
+    UPDATE user
+    SET name = ?, email = ?, phone = ?, profile_pic = ?, bio = ?, subject = ?, qualification = ?, experience_years = ?, linkedin = ?, availability = ?, location = ?
+    WHERE id = ?
+  `;
+
+  db.query(sql, [name, email, phone, profile_pic, bio, subject, qualification, experience_years, linkedin, availability, location, userId], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'Profile updated successfully' });
+  });
+};
+
+
+module.exports = { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile };
