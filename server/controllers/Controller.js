@@ -294,5 +294,42 @@ const updateProfile = (req, res) => {
   });
 };
 
+// Change Password
+const changePassword = (req, res) => {
+  const { userId, currentPassword, newPassword } = req.body;
 
-module.exports = { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile };
+  if (!userId || !currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'All fields are required.' });
+  }
+
+  // Step 1: Get user from DB
+  db.query('SELECT * FROM user WHERE id = ?', [userId], async (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = results[0];
+
+    // Step 2: Compare current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Step 3: Hash new password and update
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    db.query(
+      'UPDATE user SET password = ? WHERE id = ?',
+      [hashedNewPassword, userId],
+      (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        res.json({ message: 'Password changed successfully' });
+      }
+    );
+  });
+};
+
+module.exports = { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword };
