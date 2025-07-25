@@ -14,11 +14,13 @@ import Profile from "../pages/Profile";
 import SignIn from "../pages/SignIn";
 import SignUp from "../pages/SignUp";
 import CourseDetail from "../pages/CourseDetail";
+import Footer from "../component/Footer";
 
 // Create authentication context
 const AuthContext = createContext();
 
 // Custom hook for authentication
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   return useContext(AuthContext);
 };
@@ -82,6 +84,7 @@ function App() {
               />
             </Routes>
           </main>
+          <Footer />
         </div>
       </Router>
     </AuthProvider>

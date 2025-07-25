@@ -1,16 +1,24 @@
 // pages/SignUp.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from '../src/App';
+import { useAuth } from "../src/App";
 import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    name: "",
     email: "",
     password: "",
     confirmPassword: "",
+    role: "student",
+    phone: "",
+    bio: "",
+    // Teacher specific fields
+    subject: "",
+    qualification: "",
+    experience_years: "",
+    linkedin: "",
+    availability: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -46,21 +54,74 @@ const SignUp = () => {
     }
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Mock registration - replace with actual API call
-      login({
-        id: 1,
-        name: `${formData.firstName} ${formData.lastName}`,
+      // Prepare the data based on role
+      const userData = {
+        name: formData.name,
         email: formData.email,
-        avatar:
-          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=200&q=80",
+        password: formData.password,
+        role: formData.role,
+        phone: formData.phone || undefined,
+        bio: formData.bio || undefined,
+      };
+
+      // Add teacher specific fields if role is teacher
+      if (formData.role === "teacher") {
+        userData.subject = formData.subject;
+        userData.qualification = formData.qualification;
+        userData.experience_years = formData.experience_years;
+        userData.linkedin = formData.linkedin;
+        userData.availability = formData.availability;
+      }
+
+      const response = await fetch("http://localhost:5000/api/users/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
       });
-      navigate("/dashboard");
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Something went wrong");
+      }
+
+      // After successful signup, login the user
+      const loginResponse = await fetch(
+        "http://localhost:5000/api/users/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
+        }
+      );
+
+      const loginData = await loginResponse.json();
+
+      if (!loginResponse.ok) {
+        throw new Error(loginData.error || "Login failed after signup");
+      }
+
+      // Store the token
+      localStorage.setItem("token", loginData.token);
+      login(loginData.token);
+
+      // Redirect based on role
+      if (formData.role === "admin") {
+        navigate("/admin/dashboard");
+      } else if (formData.role === "teacher") {
+        navigate("/teacher/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
-      setError("An error occurred during registration");
-      console.log("Error", err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -95,44 +156,176 @@ const SignUp = () => {
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="firstName"
-                  className="block text-sm font-medium text-zinc-300 mb-1"
-                >
-                  First Name
-                </label>
-                <input
-                  id="firstName"
-                  name="firstName"
-                  type="text"
-                  required
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="First name"
-                />
-              </div>
+            <div>
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-zinc-300 mb-1"
+              >
+                Full Name
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                required
+                value={formData.name}
+                onChange={handleChange}
+                className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Enter your full name"
+              />
+            </div>
 
-              <div>
-                <label
-                  htmlFor="lastName"
-                  className="block text-sm font-medium text-zinc-300 mb-1"
-                >
-                  Last Name
-                </label>
-                <input
-                  id="lastName"
-                  name="lastName"
-                  type="text"
-                  required
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Last name"
-                />
-              </div>
+            <div>
+              <label
+                htmlFor="role"
+                className="block text-sm font-medium text-zinc-300 mb-1"
+              >
+                Role
+              </label>
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+              </select>
+            </div>
+
+            {formData.role === "teacher" && (
+              <>
+                <div>
+                  <label
+                    htmlFor="subject"
+                    className="block text-sm font-medium text-zinc-300 mb-1"
+                  >
+                    Subject
+                  </label>
+                  <input
+                    id="subject"
+                    name="subject"
+                    type="text"
+                    required
+                    value={formData.subject}
+                    onChange={handleChange}
+                    className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="What subject do you teach?"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="qualification"
+                    className="block text-sm font-medium text-zinc-300 mb-1"
+                  >
+                    Qualification
+                  </label>
+                  <input
+                    id="qualification"
+                    name="qualification"
+                    type="text"
+                    required
+                    value={formData.qualification}
+                    onChange={handleChange}
+                    className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Your highest qualification"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="experience_years"
+                    className="block text-sm font-medium text-zinc-300 mb-1"
+                  >
+                    Years of Experience
+                  </label>
+                  <input
+                    id="experience_years"
+                    name="experience_years"
+                    type="number"
+                    required
+                    value={formData.experience_years}
+                    onChange={handleChange}
+                    className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Years of teaching experience"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="linkedin"
+                    className="block text-sm font-medium text-zinc-300 mb-1"
+                  >
+                    LinkedIn Profile
+                  </label>
+                  <input
+                    id="linkedin"
+                    name="linkedin"
+                    type="url"
+                    value={formData.linkedin}
+                    onChange={handleChange}
+                    className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Your LinkedIn profile URL"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="availability"
+                    className="block text-sm font-medium text-zinc-300 mb-1"
+                  >
+                    Availability
+                  </label>
+                  <input
+                    id="availability"
+                    name="availability"
+                    type="text"
+                    required
+                    value={formData.availability}
+                    onChange={handleChange}
+                    className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="e.g., Weekdays 9AM-5PM"
+                  />
+                </div>
+              </>
+            )}
+
+            <div>
+              <label
+                htmlFor="phone"
+                className="block text-sm font-medium text-zinc-300 mb-1"
+              >
+                Phone Number
+              </label>
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={handleChange}
+                className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Your phone number"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="bio"
+                className="block text-sm font-medium text-zinc-300 mb-1"
+              >
+                Bio
+              </label>
+              <textarea
+                id="bio"
+                name="bio"
+                rows="3"
+                value={formData.bio}
+                onChange={handleChange}
+                className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Tell us about yourself"
+              ></textarea>
             </div>
 
             <div>
