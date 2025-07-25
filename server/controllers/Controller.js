@@ -90,15 +90,15 @@ const loginUser = (req, res) => {
 
 // Create a course
 const createCourse = (req, res) => {
-  const { title, subject, description, material_url, teacher_id, access_type, price } = req.body;
+  const { title, subject, description, material_url, teacher_id, access_type, price, thumbnail } = req.body;
 
   if (!teacher_id) {
     return res.status(400).json({ error: 'teacher_id is required' });
   }
 
   const sql = `
-    INSERT INTO courses (title, subject, description, material_url, teacher_id, access_type, price)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO courses (title, subject, description, material_url, teacher_id, access_type, price, thumbnail)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.query(
@@ -110,7 +110,8 @@ const createCourse = (req, res) => {
       material_url || null,
       teacher_id,
       access_type || 'free', 
-      price || null 
+      price || null,
+      thumbnail || null 
     ],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
