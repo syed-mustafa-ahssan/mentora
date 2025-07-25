@@ -1,7 +1,7 @@
 // pages/SignUp.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../src/App";
+import { useAuth } from "../src/contexts/AuthContext";
 import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 const SignUp = () => {
@@ -19,14 +19,23 @@ const SignUp = () => {
     experience_years: "",
     linkedin: "",
     availability: "",
+    // New fields
+    profile_pic: "",
+    location: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     setFormData({
@@ -62,6 +71,8 @@ const SignUp = () => {
         role: formData.role,
         phone: formData.phone || undefined,
         bio: formData.bio || undefined,
+        profile_pic: formData.profile_pic || undefined,
+        location: formData.location || undefined,
       };
 
       // Add teacher specific fields if role is teacher
@@ -424,6 +435,34 @@ const SignUp = () => {
                   )}
                 </button>
               </div>
+            </div>
+            <div>
+              <label htmlFor="profile_pic" className="block text-sm font-medium text-zinc-300 mb-1">
+                Profile Picture URL
+              </label>
+              <input
+                id="profile_pic"
+                name="profile_pic"
+                type="url"
+                value={formData.profile_pic}
+                onChange={handleChange}
+                className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Link to your profile picture"
+              />
+            </div>
+            <div>
+              <label htmlFor="location" className="block text-sm font-medium text-zinc-300 mb-1">
+                Location
+              </label>
+              <input
+                id="location"
+                name="location"
+                type="text"
+                value={formData.location}
+                onChange={handleChange}
+                className="bg-zinc-800 border border-zinc-700 text-white rounded-lg block w-full p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Your city, country, etc."
+              />
             </div>
           </div>
 

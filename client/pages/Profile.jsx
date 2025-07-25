@@ -1,73 +1,114 @@
-import React, { useState } from 'react';
-import { 
-  User, 
-  Mail, 
-  Calendar, 
-  MapPin, 
-  Phone, 
-  Edit3, 
-  Camera,
-  Lock,
-  Bell,
-  Globe,
-  CreditCard,
-  LogOut,
-  Save,
-  X
-} from 'lucide-react';
+// pages/Profile.jsx
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { User, Mail, Phone, MapPin, BookOpen, Calendar } from 'lucide-react';
+import { useAuth } from "../src/contexts/AuthContext";
+import { apiFetch } from "../src/utils/api";
+import CourseCard from "../component/CourseCard";
 
 const Profile = () => {
-  const [activeTab, setActiveTab] = useState('profile');
-  const [isEditing, setIsEditing] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
+  const { user } = useAuth();
+  const userId = user?.id;
+  const [profile, setProfile] = useState(null);
+  // State for enrolled courses - only relevant for students
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Mock user data - replace with actual API data
-  const [userData, setUserData] = useState({
-    firstName: "Alex",
-    lastName: "Johnson",
-    email: "alex.johnson@example.com",
-    phone: "+1 (555) 123-4567",
-    location: "San Francisco, CA",
-    bio: "Full-stack developer with 8+ years of experience. Passionate about React, Node.js, and cloud technologies. Mentor at Mentora since 2021.",
-    joinDate: "March 15, 2021",
-    lastActive: "2 hours ago",
-    avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=200&q=80"
-  });
+  useEffect(() => {
+    if (!userId) return; // Wait for user ID
 
-  const [editData, setEditData] = useState({ ...userData });
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
+    const fetchData = async () => {
+      setLoading(true);
+      setError("");
 
-  const handleSave = () => {
-    setUserData({ ...editData });
-    setIsEditing(false);
-  };
+      try {
+        // 1. Get user profile data
+        // Since there's no dedicated GET user by ID endpoint,
+        // we can use the token payload (which you already have in context)
+        // or potentially fetch all user data if needed.
+        // For now, we'll use the data from the auth context.
+        // If you need to fetch fresh user data, you'd need a backend endpoint like GET /user/:id
+        // For this example, we'll enrich the context user data with what we have.
+        
+        // 2. Get enrolled courses for students
+        let enrolledData = [];
+        // Check user role from context if available, or assume student if no specific teacher fields
+        const isStudent = user?.role !== 'teacher'; // Simplified check
 
-  const handlePasswordChange = (e) => {
-    e.preventDefault();
-    // Password validation logic would go here
-    alert('Password updated successfully!');
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    });
-    setShowChangePassword(false);
-  };
+        if (isStudent) {
+          const response = await apiFetch(`http://localhost:5000/api/users/enrolled-courses/${userId}`);
+          // Based on your backend, response.data should have { enrolledCourses: [...] }
+          enrolledData = response.data?.enrolledCourses || response.data || [];
+        }
 
-  const tabs = [
-    { id: 'profile', name: 'Profile', icon: <User className="h-4 w-4" /> },
-    { id: 'security', name: 'Security', icon: <Lock className="h-4 w-4" /> },
-    { id: 'notifications', name: 'Notifications', icon: <Bell className="h-4 w-4" /> },
-    { id: 'billing', name: 'Billing', icon: <CreditCard className="h-4 w-4" /> }
-  ];
+        // Set states
+        // Use user data from context as the base profile
+        setProfile(user); 
+        setEnrolledCourses(Array.isArray(enrolledData) ? enrolledData : []);
+        
+      } catch (err) {
+        console.error("API Error in Profile:", err);
+        if (err.response) {
+            setError(`Server Error: ${err.response.data?.error || err.response.statusText}`);
+        } else if (err.request) {
+            setError("Network Error: Unable to reach the server.");
+        } else {
+            setError(`Error: ${err.message}`);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [userId, user]); // Depend on userId and user from context
+
+  if (!userId) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="text-center py-12">
+          <div className="bg-zinc-800 p-6 rounded-xl inline-block">
+            <User className="h-12 w-12 text-indigo-500 mx-auto" />
+            <h3 className="mt-4 text-xl font-medium">Please sign in to view your profile</h3>
+            <Link 
+              to="/signin" 
+              className="mt-4 inline-block bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg font-medium transition duration-300"
+            >
+              Sign In
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+          <p className="mt-4 text-zinc-400">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-center">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  // Determine role for display
+  const displayRole = profile?.role === 'teacher' ? 'Instructor' : 'Student';
 
   return (
-    <div className="py-8 max-w-7xl mx-auto">
-      {/* Page Header */}
+    <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Your Profile</h1>
         <p className="mt-2 text-zinc-400">
@@ -75,602 +116,155 @@ const Profile = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Sidebar */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Profile Info Card */}
         <div className="lg:col-span-1">
-          <div className="bg-zinc-800 rounded-xl p-6">
-            {/* Profile Header */}
-            <div className="relative">
-              <div className="bg-zinc-700 h-24 rounded-lg"></div>
-              <div className="relative -mt-12">
-                <div className="relative inline-block">
+          <div className="bg-zinc-800 rounded-xl p-6 sticky top-24">
+            <div className="flex flex-col items-center">
+              {/* Avatar/Profile Pic */}
+              <div className="bg-zinc-700 border-2 border-dashed rounded-xl w-24 h-24 flex items-center justify-center mb-4">
+                {profile?.profile_pic ? (
                   <img 
-                    src={userData.avatar} 
-                    alt={userData.firstName} 
-                    className="h-24 w-24 rounded-full border-4 border-zinc-800"
+                    src={profile.profile_pic} 
+                    alt={profile?.name || "Profile"} 
+                    className="rounded-xl w-24 h-24 object-cover"
                   />
-                  {isEditing && (
-                    <button className="absolute bottom-0 right-0 bg-indigo-600 rounded-full p-1.5 border-2 border-zinc-800">
-                      <Camera className="h-4 w-4 text-white" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <h2 className="text-xl font-bold">
-                {isEditing ? (
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={editData.firstName}
-                      onChange={(e) => setEditData({...editData, firstName: e.target.value})}
-                      className="bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-lg font-bold w-full"
-                    />
-                    <input
-                      type="text"
-                      value={editData.lastName}
-                      onChange={(e) => setEditData({...editData, lastName: e.target.value})}
-                      className="bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-lg font-bold w-full"
-                    />
-                  </div>
                 ) : (
-                  `${userData.firstName} ${userData.lastName}`
+                  <User className="h-12 w-12 text-zinc-500" />
                 )}
-              </h2>
-              <p className="text-zinc-400 text-sm mt-1">Student</p>
+              </div>
               
-              {isEditing ? (
-                <textarea
-                  value={editData.bio}
-                  onChange={(e) => setEditData({...editData, bio: e.target.value})}
-                  className="mt-3 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm w-full h-24 resize-none"
-                />
-              ) : (
-                <p className="mt-3 text-sm text-zinc-300">
-                  {userData.bio}
+              <h2 className="text-xl font-bold text-center">{profile?.name || "User"}</h2>
+              <p className="text-zinc-400 text-sm mt-1">{displayRole}</p>
+              
+              {profile?.bio && (
+                <p className="mt-4 text-zinc-300 text-center text-sm">
+                  {profile.bio}
                 </p>
               )}
             </div>
 
-            <div className="mt-6 pt-6 border-t border-zinc-700">
-              <div className="flex items-center text-sm text-zinc-400 mb-2">
-                <Mail className="h-4 w-4 mr-2" />
-                <span>{userData.email}</span>
+            <div className="mt-6 pt-6 border-t border-zinc-700 space-y-4">
+              <div className="flex items-center text-sm text-zinc-300">
+                <Mail className="h-4 w-4 mr-3 text-zinc-500 flex-shrink-0" />
+                <span className="truncate">{profile?.email || "N/A"}</span>
               </div>
-              <div className="flex items-center text-sm text-zinc-400 mb-2">
-                <MapPin className="h-4 w-4 mr-2" />
-                <span>{userData.location}</span>
-              </div>
-              <div className="flex items-center text-sm text-zinc-400">
-                <Calendar className="h-4 w-4 mr-2" />
-                <span>Joined {userData.joinDate}</span>
+              
+              {profile?.phone && (
+                <div className="flex items-center text-sm text-zinc-300">
+                  <Phone className="h-4 w-4 mr-3 text-zinc-500 flex-shrink-0" />
+                  <span>{profile.phone}</span>
+                </div>
+              )}
+              
+              {profile?.location && (
+                <div className="flex items-center text-sm text-zinc-300">
+                  <MapPin className="h-4 w-4 mr-3 text-zinc-500 flex-shrink-0" />
+                  <span>{profile.location}</span>
+                </div>
+              )}
+              
+              <div className="flex items-center text-sm text-zinc-300">
+                <Calendar className="h-4 w-4 mr-3 text-zinc-500 flex-shrink-0" />
+                <span>Joined: {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : "N/A"}</span>
               </div>
             </div>
 
-            <div className="mt-6 flex space-x-3">
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={handleSave}
-                    className="flex-1 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition"
-                  >
-                    <Save className="h-4 w-4 mr-1" />
-                    Save
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditData({ ...userData });
-                    }}
-                    className="p-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex-1 flex items-center justify-center bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded-lg text-sm font-medium transition"
-                >
-                  <Edit3 className="h-4 w-4 mr-1" />
-                  Edit Profile
-                </button>
-              )}
+            <div className="mt-6">
+              <Link
+                to="/update-profile" // You'll need to create this page/route
+                className="w-full flex items-center justify-center bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded-lg text-sm font-medium transition duration-300"
+              >
+                Edit Profile
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="lg:col-span-3">
-          <div className="bg-zinc-800 rounded-xl">
-            {/* Tabs */}
-            <div className="border-b border-zinc-700">
-              <nav className="flex space-x-8 px-6">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
-                      activeTab === tab.id
-                        ? 'border-indigo-500 text-indigo-400'
-                        : 'border-transparent text-zinc-400 hover:text-zinc-300 hover:border-zinc-300'
-                    }`}
-                  >
-                    <span className="mr-2">{tab.icon}</span>
-                    {tab.name}
-                  </button>
-                ))}
-              </nav>
+        {/* Main Content Area */}
+        <div className="lg:col-span-2">
+          {/* Stats Section - Mock data for now */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+              <p className="text-sm font-medium text-zinc-400">Courses Enrolled</p>
+              <p className="mt-1 text-2xl font-bold">
+                {profile?.role === 'teacher' ? 'N/A' : enrolledCourses.length}
+              </p>
             </div>
-
-            {/* Tab Content */}
-            <div className="p-6">
-              {/* Profile Tab */}
-              {activeTab === 'profile' && (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Personal Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-400 mb-1">
-                          First Name
-                        </label>
-                        <p className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2">
-                          {userData.firstName}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-400 mb-1">
-                          Last Name
-                        </label>
-                        <p className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2">
-                          {userData.lastName}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-400 mb-1">
-                          Email Address
-                        </label>
-                        <p className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2">
-                          {userData.email}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-400 mb-1">
-                          Phone Number
-                        </label>
-                        <p className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2">
-                          {userData.phone}
-                        </p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-zinc-400 mb-1">
-                          Location
-                        </label>
-                        <p className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2">
-                          {userData.location}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">About</h3>
-                    <div>
-                      <label className="block text-sm font-medium text-zinc-400 mb-1">
-                        Bio
-                      </label>
-                      <p className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 min-h-[100px]">
-                        {userData.bio}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Security Tab */}
-              {activeTab === 'security' && (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Password</h3>
-                    <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-5">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium">Password</p>
-                          <p className="text-sm text-zinc-400 mt-1">
-                            Last changed 3 months ago
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => setShowChangePassword(true)}
-                          className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg text-sm font-medium transition"
-                        >
-                          Change Password
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Two-Factor Authentication</h3>
-                    <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-5">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium">Two-Factor Authentication</p>
-                          <p className="text-sm text-zinc-400 mt-1">
-                            Add an extra layer of security to your account
-                          </p>
-                        </div>
-                        <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition">
-                          Enable
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Active Sessions</h3>
-                    <div className="space-y-4">
-                      <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4">
-                        <div className="flex justify-between">
-                          <div>
-                            <p className="font-medium">Current Session</p>
-                            <p className="text-sm text-zinc-400 mt-1">
-                              San Francisco, CA • Chrome on Windows
-                            </p>
-                          </div>
-                          <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
-                            Active now
-                          </span>
-                        </div>
-                        <p className="text-xs text-zinc-500 mt-2">
-                          Signed in: Today at 9:30 AM
-                        </p>
-                      </div>
-                      <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4">
-                        <div className="flex justify-between">
-                          <div>
-                            <p className="font-medium">Other Session</p>
-                            <p className="text-sm text-zinc-400 mt-1">
-                              New York, NY • Safari on macOS
-                            </p>
-                          </div>
-                          <button className="text-sm text-red-400 hover:text-red-300">
-                            Sign Out
-                          </button>
-                        </div>
-                        <p className="text-xs text-zinc-500 mt-2">
-                          Signed in: Dec 12, 2023
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Notifications Tab */}
-              {activeTab === 'notifications' && (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Notification Preferences</h3>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between py-3 border-b border-zinc-700">
-                        <div>
-                          <p className="font-medium">Course Updates</p>
-                          <p className="text-sm text-zinc-400 mt-1">
-                            Notifications about course progress and deadlines
-                          </p>
-                        </div>
-                        <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                          <input 
-                            type="checkbox" 
-                            id="course-updates" 
-                            className="sr-only" 
-                            defaultChecked 
-                          />
-                          <label 
-                            htmlFor="course-updates" 
-                            className="block h-6 w-10 rounded-full bg-indigo-600 cursor-pointer"
-                          >
-                            <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform translate-x-4"></span>
-                          </label>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between py-3 border-b border-zinc-700">
-                        <div>
-                          <p className="font-medium">Messages</p>
-                          <p className="text-sm text-zinc-400 mt-1">
-                            Messages from instructors and other students
-                          </p>
-                        </div>
-                        <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                          <input 
-                            type="checkbox" 
-                            id="messages" 
-                            className="sr-only" 
-                            defaultChecked 
-                          />
-                          <label 
-                            htmlFor="messages" 
-                            className="block h-6 w-10 rounded-full bg-indigo-600 cursor-pointer"
-                          >
-                            <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform translate-x-4"></span>
-                          </label>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between py-3 border-b border-zinc-700">
-                        <div>
-                          <p className="font-medium">Newsletter</p>
-                          <p className="text-sm text-zinc-400 mt-1">
-                            Updates about new courses and platform features
-                          </p>
-                        </div>
-                        <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                          <input 
-                            type="checkbox" 
-                            id="newsletter" 
-                            className="sr-only" 
-                          />
-                          <label 
-                            htmlFor="newsletter" 
-                            className="block h-6 w-10 rounded-full bg-zinc-700 cursor-pointer"
-                          >
-                            <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></span>
-                          </label>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between py-3">
-                        <div>
-                          <p className="font-medium">Promotional Offers</p>
-                          <p className="text-sm text-zinc-400 mt-1">
-                            Special offers and discounts on courses
-                          </p>
-                        </div>
-                        <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                          <input 
-                            type="checkbox" 
-                            id="promotions" 
-                            className="sr-only" 
-                          />
-                          <label 
-                            htmlFor="promotions" 
-                            className="block h-6 w-10 rounded-full bg-zinc-700 cursor-pointer"
-                          >
-                            <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Email Preferences</h3>
-                    <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-5">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium">Weekly Summary</p>
-                          <p className="text-sm text-zinc-400 mt-1">
-                            Get a weekly summary of your learning progress
-                          </p>
-                        </div>
-                        <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                          <input 
-                            type="checkbox" 
-                            id="weekly-summary" 
-                            className="sr-only" 
-                            defaultChecked 
-                          />
-                          <label 
-                            htmlFor="weekly-summary" 
-                            className="block h-6 w-10 rounded-full bg-indigo-600 cursor-pointer"
-                          >
-                            <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform translate-x-4"></span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Billing Tab */}
-              {activeTab === 'billing' && (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Payment Methods</h3>
-                    <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="bg-indigo-500/20 p-3 rounded-lg">
-                            <CreditCard className="h-6 w-6 text-indigo-400" />
-                          </div>
-                          <div className="ml-4">
-                            <p className="font-medium">Visa ending in 4242</p>
-                            <p className="text-sm text-zinc-400 mt-1">
-                              Expires 12/2025
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-sm">
-                            Edit
-                          </button>
-                          <button className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded text-sm">
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Billing History</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-zinc-700">
-                        <thead>
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                              Date
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                              Description
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                              Amount
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                              Status
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-700">
-                          <tr>
-                            <td className="px-4 py-4 text-sm text-zinc-300 whitespace-nowrap">
-                              Dec 1, 2023
-                            </td>
-                            <td className="px-4 py-4 text-sm text-zinc-300">
-                              Advanced React Development Course
-                            </td>
-                            <td className="px-4 py-4 text-sm text-zinc-300">
-                              $89.99
-                            </td>
-                            <td className="px-4 py-4 text-sm">
-                              <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">
-                                Paid
-                              </span>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="px-4 py-4 text-sm text-zinc-300 whitespace-nowrap">
-                              Nov 15, 2023
-                            </td>
-                            <td className="px-4 py-4 text-sm text-zinc-300">
-                              UI/UX Design Masterclass
-                            </td>
-                            <td className="px-4 py-4 text-sm text-zinc-300">
-                              $79.99
-                            </td>
-                            <td className="px-4 py-4 text-sm">
-                              <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">
-                                Paid
-                              </span>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="px-4 py-4 text-sm text-zinc-300 whitespace-nowrap">
-                              Oct 5, 2023
-                            </td>
-                            <td className="px-4 py-4 text-sm text-zinc-300">
-                              Data Science Fundamentals
-                            </td>
-                            <td className="px-4 py-4 text-sm text-zinc-300">
-                              $99.99
-                            </td>
-                            <td className="px-4 py-4 text-sm">
-                              <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">
-                                Paid
-                              </span>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+              <p className="text-sm font-medium text-zinc-400">Certificates</p>
+              <p className="mt-1 text-2xl font-bold">2</p> {/* Mock */}
+            </div>
+            <div className="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+              <p className="text-sm font-medium text-zinc-400">Learning Hours</p>
+              <p className="mt-1 text-2xl font-bold">42</p> {/* Mock */}
             </div>
           </div>
 
-          {/* Account Actions */}
-          <div className="mt-6 flex justify-end">
-            <button className="flex items-center px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition">
-              <LogOut className="h-4 w-4 mr-1" />
-              Deactivate Account
-            </button>
+          {/* Courses Section */}
+          <div className="bg-zinc-800 rounded-xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">
+                {profile?.role === 'teacher' ? "Your Courses" : "Enrolled Courses"}
+              </h2>
+              {profile?.role === 'teacher' && (
+                <Link 
+                  to="/add-course" 
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition duration-300"
+                >
+                  Create New Course
+                </Link>
+              )}
+            </div>
+
+            {profile?.role === 'teacher' ? (
+              // For teachers, you'd fetch their courses
+              // This would require calling getCoursesByTeacher
+              // For now, we show a message
+              <div className="text-center py-8">
+                <BookOpen className="h-12 w-12 text-zinc-600 mx-auto" />
+                <h3 className="mt-4 text-lg font-medium">Instructor View</h3>
+                <p className="mt-1 text-zinc-500">
+                  Visit your <Link to="/dashboard" className="text-indigo-400 hover:underline">Dashboard</Link> to manage your courses.
+                </p>
+              </div>
+            ) : enrolledCourses.length === 0 ? (
+              <div className="text-center py-8">
+                <BookOpen className="h-12 w-12 text-zinc-600 mx-auto" />
+                <h3 className="mt-4 text-lg font-medium">You're not enrolled in any courses</h3>
+                <p className="mt-1 text-zinc-500">
+                  Browse our course library to get started
+                </p>
+                <div className="mt-6">
+                  <Link 
+                    to="/courses"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    Browse Courses
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {enrolledCourses.map((course) => (
+                  <CourseCard 
+                    key={course.id} 
+                    course={{
+                      ...course,
+                      // Map fields from your backend to CourseCard props
+                      instructor: course.teacher_name || "Unknown Instructor", // Needs backend JOIN
+                      rating: course.rating || 4.5, // Mock
+                      students: course.enrollment_count || 1200, // Mock
+                      category: course.subject,
+                      price: course.price || 0
+                    }} 
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Change Password Modal */}
-      {showChangePassword && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-800 rounded-xl max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Change Password</h3>
-              <button 
-                onClick={() => setShowChangePassword(false)}
-                className="p-1 rounded-full hover:bg-zinc-700"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <form onSubmit={handlePasswordChange}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-400 mb-1">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordData.currentPassword}
-                    onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-zinc-400 mb-1">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordData.newPassword}
-                    onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-zinc-400 mb-1">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordData.confirmPassword}
-                    onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div className="mt-6 flex space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowChangePassword(false)}
-                  className="flex-1 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium"
-                >
-                  Update Password
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

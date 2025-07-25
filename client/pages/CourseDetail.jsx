@@ -12,7 +12,7 @@ import {
   ChevronRight,
   Award,
 } from "lucide-react";
-import { useAuth } from "../src/App";
+import { useAuth } from "../src/contexts/AuthContext";
 
 const CourseDetail = () => {
   const { id } = useParams();
@@ -180,11 +180,10 @@ const CourseDetail = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === tab.id
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
                   ? "border-indigo-500 text-indigo-400"
                   : "border-transparent text-zinc-400 hover:text-zinc-300 hover:border-zinc-300"
-              }`}
+                }`}
             >
               {tab.name}
             </button>
@@ -297,9 +296,8 @@ const CourseDetail = () => {
                       </p>
                     </div>
                     <ChevronRight
-                      className={`h-5 w-5 text-zinc-400 transform transition-transform ${
-                        expandedModule === module.id ? "rotate-90" : ""
-                      }`}
+                      className={`h-5 w-5 text-zinc-400 transform transition-transform ${expandedModule === module.id ? "rotate-90" : ""
+                        }`}
                     />
                   </button>
 
@@ -414,11 +412,10 @@ const CourseDetail = () => {
                         <Star
                           key={i}
                           size={16}
-                          className={`${
-                            i < 5
+                          className={`${i < 5
                               ? "text-amber-400 fill-current"
                               : "text-zinc-600"
-                          }`}
+                            }`}
                         />
                       ))}
                     </div>

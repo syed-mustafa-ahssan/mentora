@@ -1,7 +1,7 @@
 // pages/SignIn.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../src/App";
+import { useAuth } from "../src/contexts/AuthContext";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 const SignIn = () => {
@@ -10,15 +10,18 @@ const SignIn = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && (isAuthenticated || localStorage.getItem("token"))) {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, loading, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
 
     try {
       const response = await fetch("http://localhost:5000/api/users/login", {
@@ -60,7 +63,7 @@ const SignIn = () => {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      // setLoading(false); // This line is removed as loading is now managed by useAuth
     }
   };
 

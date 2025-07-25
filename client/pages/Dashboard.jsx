@@ -1,326 +1,273 @@
-import React from 'react';
-import { 
-  BookOpen, 
-  Users, 
-  TrendingUp, 
-  Clock, 
-  Award, 
-  Calendar,
-  CheckCircle,
-  PlayCircle,
-  Star
-} from 'lucide-react';
-import CourseProgressCard from '../component/CourseProgressCard';
-import StatCard from '../component/StatCard';
-
+// pages/Dashboard.jsx
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { BookOpen, Users, TrendingUp, Clock } from 'lucide-react';
+import { useAuth } from "../src/contexts/AuthContext";
+import { apiFetch } from "../src/utils/api";
+import CourseCard from "../component/CourseCard";
 
 const Dashboard = () => {
-  // Mock data - replace with actual API data
-  const stats = {
-    enrolledCourses: 8,
-    completedCourses: 3,
-    totalHours: 42,
-    certificates: 2
-  };
+  const { user } = useAuth();
+  const userId = user?.id;
+  const role = user?.role;
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const enrolledCourses = [
-    {
-      id: 1,
-      title: "Advanced React Development",
-      instructor: "Alex Johnson",
-      progress: 75,
-      thumbnail: "https://images.unsplash.com/photo-1633356122102-3fe601e05bd2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=600&q=80",
-      category: "Web Development",
-      lastAccessed: "2 days ago"
-    },
-    {
-      id: 2,
-      title: "UI/UX Design Masterclass",
-      instructor: "Sarah Chen",
-      progress: 40,
-      thumbnail: "https://images.unsplash.com/photo-1558655146-d09347e92766?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=600&q=80",
-      category: "Design",
-      lastAccessed: "1 week ago"
-    },
-    {
-      id: 3,
-      title: "Data Science Fundamentals",
-      instructor: "Michael Rodriguez",
-      progress: 90,
-      thumbnail: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=600&q=80",
-      category: "Data Science",
-      lastAccessed: "3 days ago"
+  useEffect(() => {
+    // Ensure user data is available before proceeding
+    if (!userId || !role) {
+        // If user is not authenticated, we shouldn't be on this page anyway due to ProtectedRoute,
+        // but good to handle. The loading state might be misleading here if user is null.
+        // Let's rely on ProtectedRoute to handle unauthenticated access.
+        if (userId === undefined && role === undefined) {
+             // User object exists but id/role are missing - still loading auth state
+             return;
+        }
+        // If userId or role is explicitly null/undefined after auth loaded
+        if (!userId || !role) {
+             setLoading(false); // Stop loading if user data is incomplete
+             return;
+        }
     }
-  ];
 
-  const recentActivity = [
-    {
-      id: 1,
-      action: "Completed",
-      course: "JavaScript Mastery",
-      timestamp: "2 hours ago",
-      icon: <CheckCircle className="h-5 w-5 text-green-500" />
-    },
-    {
-      id: 2,
-      action: "Started",
-      course: "Mobile App Development",
-      timestamp: "1 day ago",
-      icon: <PlayCircle className="h-5 w-5 text-indigo-500" />
-    },
-    {
-      id: 3,
-      action: "Earned Certificate",
-      course: "Python for Beginners",
-      timestamp: "3 days ago",
-      icon: <Award className="h-5 w-5 text-amber-500" />
-    },
-    {
-      id: 4,
-      action: "Rated",
-      course: "UI/UX Design Masterclass",
-      timestamp: "1 week ago",
-      icon: <Star className="h-5 w-5 text-amber-400" />
-    }
-  ];
+    const fetchData = async () => {
+      setLoading(true);
+      setError("");
+      
+      try {
+        let coursesData = [];
+        if (role === "teacher") {
+          // Fetch teacher's courses using the correct endpoint
+          // Make sure this matches your backend route: /api/users/course-by-teacher/:teacherId
+          const response = await apiFetch(`/course-by-teacher/${userId}`);
+          // Handle potential response structure variations
+          coursesData = response.data || response;
+        } else {
+          // Fetch student's enrolled courses using the correct endpoint
+          // Make sure this matches your backend route: /api/users/enrolled-courses/:userId
+          const response = await api.get(`/enrolled-courses/${userId}`);
+          // Handle potential response structure variations
+          // Backend returns { enrolledCourses: [...] }
+          coursesData = response.data?.enrolledCourses || response.data || [];
+        }
+        
+        // Ensure coursesData is always an array
+        setCourses(Array.isArray(coursesData) ? coursesData : []);
+      } catch (err) {
+        console.error("API Error in Dashboard:", err);
+        // Provide more specific error messages
+        if (err.response) {
+            // Server responded with error status
+            setError(`Server Error: ${err.response.data?.error || err.response.statusText}`);
+        } else if (err.request) {
+            // Request was made but no response received
+            setError("Network Error: Unable to reach the server.");
+        } else {
+            // Something else happened
+            setError(`Error: ${err.message}`);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const upcomingDeadlines = [
-    {
-      id: 1,
-      title: "Final Project Submission",
-      course: "Advanced React Development",
-      dueDate: "Dec 15, 2023",
-      daysLeft: 5
-    },
-    {
-      id: 2,
-      title: "Quiz: State Management",
-      course: "Advanced React Development",
-      dueDate: "Dec 10, 2023",
-      daysLeft: 0
-    },
-    {
-      id: 3,
-      title: "Assignment 3: Prototyping",
-      course: "UI/UX Design Masterclass",
-      dueDate: "Dec 20, 2023",
-      daysLeft: 10
-    }
-  ];
+    fetchData();
+  }, [userId, role]); // Re-run if userId or role changes
+
+  // Handle case where user is not authenticated (should be handled by ProtectedRoute)
+  if (!userId && !loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="text-center py-12">
+          <div className="bg-zinc-800 p-6 rounded-xl inline-block">
+            <BookOpen className="h-12 w-12 text-indigo-500 mx-auto" />
+            <h3 className="mt-4 text-xl font-medium">Please sign in to view your dashboard</h3>
+            <Link 
+              to="/signin" 
+              className="mt-4 inline-block bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg font-medium transition duration-300"
+            >
+              Sign In
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+          <p className="mt-4 text-zinc-400">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-center">
+          {error}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="py-8 max-w-7xl mx-auto">
-      {/* Page Header */}
+    <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Student Dashboard</h1>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="mt-2 text-zinc-400">
-          Welcome back! Here's your learning progress overview.
+          Welcome back, {user?.name || 'User'}!
         </p>
       </div>
 
-      {/* Stats Overview */}
+      {/* Stats Overview - Using mock data as backend doesn't provide these yet */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <StatCard 
-          title="Enrolled Courses" 
-          value={stats.enrolledCourses} 
-          icon={<BookOpen className="h-6 w-6 text-indigo-500" />} 
-          change="+2 this month"
-        />
-        <StatCard 
-          title="Completed Courses" 
-          value={stats.completedCourses} 
-          icon={<CheckCircle className="h-6 w-6 text-green-500" />} 
-          change="1 this week"
-        />
-        <StatCard 
-          title="Learning Hours" 
-          value={stats.totalHours} 
-          icon={<Clock className="h-6 w-6 text-amber-500" />} 
-          change="+8 hours"
-        />
-        <StatCard 
-          title="Certificates" 
-          value={stats.certificates} 
-          icon={<Award className="h-6 w-6 text-purple-500" />} 
-          change="+1 this month"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column - Course Progress */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Current Courses */}
-          <div className="bg-zinc-800 rounded-xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Your Learning Progress</h2>
-              <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium">
-                View All Courses
-              </button>
+        <div className="bg-zinc-800 rounded-xl p-5 border border-zinc-700">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-zinc-400">
+                {role === "teacher" ? "Courses Created" : "Enrolled Courses"}
+              </p>
+              <p className="mt-1 text-3xl font-bold">
+                {courses.length} {/* Use actual course count */}
+              </p>
             </div>
-            
-            {enrolledCourses.length === 0 ? (
-              <div className="text-center py-8">
-                <BookOpen className="mx-auto h-12 w-12 text-zinc-600" />
-                <h3 className="mt-4 text-lg font-medium">No enrolled courses</h3>
-                <p className="mt-1 text-zinc-500">
-                  Start learning by enrolling in a course
-                </p>
-                <button className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
-                  Browse Courses
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {enrolledCourses.map(course => (
-                  <CourseProgressCard key={course.id} course={course} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Upcoming Deadlines */}
-          <div className="bg-zinc-800 rounded-xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Upcoming Deadlines</h2>
-              <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium">
-                View Calendar
-              </button>
+            <div className="bg-indigo-500/20 p-3 rounded-lg">
+              <BookOpen className="h-6 w-6 text-indigo-400" />
             </div>
-            
-            {upcomingDeadlines.length === 0 ? (
-              <div className="text-center py-8">
-                <Calendar className="mx-auto h-12 w-12 text-zinc-600" />
-                <h3 className="mt-4 text-lg font-medium">No upcoming deadlines</h3>
-                <p className="mt-1 text-zinc-500">
-                  You're all caught up!
-                </p>
-              </div>
-            ) : (
-              <ul className="divide-y divide-zinc-700">
-                {upcomingDeadlines.map(deadline => (
-                  <li key={deadline.id} className="py-4">
-                    <div className="flex items-center">
-                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                        deadline.daysLeft === 0 
-                          ? 'bg-red-500/20 text-red-500' 
-                          : deadline.daysLeft <= 3 
-                            ? 'bg-amber-500/20 text-amber-500' 
-                            : 'bg-indigo-500/20 text-indigo-500'
-                      }`}>
-                        <Calendar className="h-5 w-5" />
-                      </div>
-                      <div className="ml-4 flex-1">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium">{deadline.title}</h3>
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            deadline.daysLeft === 0 
-                              ? 'bg-red-500/20 text-red-500' 
-                              : deadline.daysLeft <= 3 
-                                ? 'bg-amber-500/20 text-amber-500' 
-                                : 'bg-zinc-700 text-zinc-300'
-                          }`}>
-                            {deadline.daysLeft === 0 ? 'Due today' : `${deadline.daysLeft} days left`}
-                          </span>
-                        </div>
-                        <p className="text-sm text-zinc-400 mt-1">{deadline.course}</p>
-                        <p className="text-xs text-zinc-500 mt-1">Due: {deadline.dueDate}</p>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         </div>
 
-        {/* Right Column - Recent Activity */}
-        <div className="space-y-8">
-          {/* Recent Activity */}
-          <div className="bg-zinc-800 rounded-xl p-6">
-            <h2 className="text-xl font-bold mb-6">Recent Activity</h2>
-            
-            {recentActivity.length === 0 ? (
-              <div className="text-center py-8">
-                <TrendingUp className="mx-auto h-12 w-12 text-zinc-600" />
-                <h3 className="mt-4 text-lg font-medium">No recent activity</h3>
-                <p className="mt-1 text-zinc-500">
-                  Your learning activities will appear here
-                </p>
-              </div>
-            ) : (
-              <ul className="space-y-4">
-                {recentActivity.map(activity => (
-                  <li key={activity.id} className="flex items-start">
-                    <div className="flex-shrink-0 mt-1">
-                      {activity.icon}
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm">
-                        <span className="font-medium">{activity.action}</span>{' '}
-                        <span className="text-zinc-400">"{activity.course}"</span>
-                      </p>
-                      <p className="text-xs text-zinc-500 mt-1">{activity.timestamp}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Learning Streak */}
-          <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 rounded-xl p-6 border border-indigo-500/30">
-            <div className="flex items-center">
-              <div className="bg-indigo-500/20 p-3 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-indigo-400" />
-              </div>
-              <div className="ml-4">
-                <h3 className="font-bold">7-Day Learning Streak!</h3>
-                <p className="text-sm text-zinc-300 mt-1">
-                  Keep it up to maintain your streak
-                </p>
-              </div>
+        <div className="bg-zinc-800 rounded-xl p-5 border border-zinc-700">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-zinc-400">
+                {role === "teacher" ? "Total Students" : "Completed Courses"}
+              </p>
+              <p className="mt-1 text-3xl font-bold">
+                {/* Mock data - replace with real stats when backend provides them */}
+                {role === "teacher" ? 120 : 3}
+              </p>
             </div>
-            <div className="mt-4 flex space-x-2">
-              {[1, 2, 3, 4, 5, 6, 7].map(day => (
-                <div 
-                  key={day} 
-                  className={`h-2 flex-1 rounded-full ${
-                    day <= 7 ? 'bg-indigo-500' : 'bg-zinc-700'
-                  }`}
-                ></div>
-              ))}
+            <div className="bg-green-500/20 p-3 rounded-lg">
+              <Users className="h-6 w-6 text-green-400" />
             </div>
-            <button className="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition duration-300">
-              Continue Learning
-            </button>
           </div>
+        </div>
 
-          {/* Achievements */}
-          <div className="bg-zinc-800 rounded-xl p-6">
-            <h2 className="text-xl font-bold mb-6">Recent Achievements</h2>
-            <div className="space-y-4">
-              <div className="flex items-center p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
-                <div className="bg-amber-500/20 p-2 rounded-lg">
-                  <Award className="h-5 w-5 text-amber-400" />
-                </div>
-                <div className="ml-3">
-                  <h3 className="font-medium">Quick Learner</h3>
-                  <p className="text-xs text-zinc-400">Completed 5 courses</p>
-                </div>
-              </div>
-              <div className="flex items-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                <div className="bg-green-500/20 p-2 rounded-lg">
-                  <Star className="h-5 w-5 text-green-400" />
-                </div>
-                <div className="ml-3">
-                  <h3 className="font-medium">Top Performer</h3>
-                  <p className="text-xs text-zinc-400">Scored 95%+ in 3 courses</p>
-                </div>
-              </div>
+        <div className="bg-zinc-800 rounded-xl p-5 border border-zinc-700">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-zinc-400">Learning Hours</p>
+              <p className="mt-1 text-3xl font-bold">42</p> {/* Mock data */}
+              <p className="mt-1 text-xs text-green-500">+8 this month</p>
+            </div>
+            <div className="bg-amber-500/20 p-3 rounded-lg">
+              <Clock className="h-6 w-6 text-amber-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-zinc-800 rounded-xl p-5 border border-zinc-700">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-zinc-400">Certificates</p>
+              <p className="mt-1 text-3xl font-bold">2</p> {/* Mock data */}
+              <p className="mt-1 text-xs text-green-500">+1 this month</p>
+            </div>
+            <div className="bg-purple-500/20 p-3 rounded-lg">
+              <TrendingUp className="h-6 w-6 text-purple-400" />
             </div>
           </div>
         </div>
       </div>
+
+      {/* Courses Section */}
+      <div className="bg-zinc-800 rounded-xl p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold">
+            {role === "teacher" ? "Your Courses" : "Enrolled Courses"}
+          </h2>
+          {role === "teacher" && (
+            <Link 
+              to="/add-course" 
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition duration-300"
+            >
+              Create New Course
+            </Link>
+          )}
+        </div>
+
+        {courses.length === 0 ? (
+          <div className="text-center py-12">
+            <BookOpen className="h-12 w-12 text-zinc-600 mx-auto" />
+            <h3 className="mt-4 text-lg font-medium">
+              {role === "teacher" 
+                ? "You haven't created any courses yet" 
+                : "You're not enrolled in any courses"}
+            </h3>
+            <p className="mt-1 text-zinc-500">
+              {role === "teacher" 
+                ? "Start by creating your first course" 
+                : "Browse our course library to get started"}
+            </p>
+            <div className="mt-6">
+              <Link 
+                to={role === "teacher" ? "/add-course" : "/courses"}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                {role === "teacher" ? "Create Course" : "Browse Courses"}
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {courses.map((course) => (
+              <CourseCard 
+                key={course.id} 
+                course={{
+                  ...course,
+                  // Map fields from your backend to CourseCard props
+                  // Adjust these mappings based on your actual database schema and CourseCard expectations
+                  instructor: role === "teacher" 
+                    ? "You" 
+                    : (course.teacher_name || "Unknown Instructor"), // You might need to join with user table in backend
+                  rating: course.rating || 4.5, // Backend doesn't seem to store rating, using mock
+                  students: course.enrollment_count || 1200, // Backend doesn't seem to store this, using mock
+                  category: course.subject,
+                  price: course.price || 0
+                }} 
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Additional Section for Teachers */}
+      {role === "teacher" && (
+        <div className="mt-8 bg-zinc-800 rounded-xl p-6">
+          <h2 className="text-xl font-bold mb-6">Recent Student Activity</h2>
+          {/* Mock activity - you'd need a backend endpoint for this */}
+          <div className="space-y-4">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="flex items-center p-3 bg-zinc-900 rounded-lg">
+                <div className="bg-zinc-700 rounded-full w-10 h-10 flex items-center justify-center">
+                  <Users className="h-5 w-5 text-zinc-400" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="font-medium">Sarah Johnson enrolled in "Advanced React"</h3>
+                  <p className="text-sm text-zinc-400">2 hours ago</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

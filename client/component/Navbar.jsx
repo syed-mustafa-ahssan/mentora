@@ -1,5 +1,5 @@
 // components/Navbar.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Menu,
@@ -11,23 +11,16 @@ import {
   LogOut,
   LogIn,
 } from "lucide-react";
+import { useAuth } from "../src/contexts/AuthContext";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Check authentication status on component mount and when location changes
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    setIsAuthenticated(!!token);
-  }, [location]);
+  const { isAuthenticated, logout } = useAuth();
 
   const handleSignOut = () => {
-    localStorage.removeItem("token");
-    setIsAuthenticated(false);
-    navigate("/signin");
+    logout();
     setIsMenuOpen(false);
   };
 
@@ -65,11 +58,10 @@ const Navbar = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`px-3 py-2 rounded-md text-sm font-medium flex items-center transition-colors ${
-                    isActive(item.path)
+                  className={`px-3 py-2 rounded-md text-sm font-medium flex items-center transition-colors ${isActive(item.path)
                       ? "bg-zinc-700 text-white"
                       : "text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <span className="mr-2">{item.icon}</span>
                   {item.name}
@@ -133,11 +125,10 @@ const Navbar = () => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setIsMenuOpen(false)}
-                className={`block px-3 py-2 rounded-md text-base font-medium flex items-center ${
-                  isActive(item.path)
+                className={`block px-3 py-2 rounded-md text-base font-medium flex items-center ${isActive(item.path)
                     ? "bg-zinc-700 text-white"
                     : "text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                }`}
+                  }`}
               >
                 <span className="mr-3">{item.icon}</span>
                 {item.name}

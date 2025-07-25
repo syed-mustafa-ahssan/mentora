@@ -1,5 +1,5 @@
 // App.jsx
-import React, { useState, createContext, useContext } from "react";
+import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -9,63 +9,61 @@ import {
 import Navbar from "../component/Navbar";
 import Home from "../pages/Home";
 import Courses from "../pages/Courses";
+import AddCourse from "../pages/AddCourse";
 import Dashboard from "../pages/Dashboard";
 import Profile from "../pages/Profile";
 import SignIn from "../pages/SignIn";
 import SignUp from "../pages/SignUp";
 import CourseDetail from "../pages/CourseDetail";
 import Footer from "../component/Footer";
-
-// Create authentication context
-const AuthContext = createContext();
-
-// Custom hook for authentication
-// eslint-disable-next-line react-refresh/only-export-components
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return <div className="text-center py-8">Loading...</div>;
   return isAuthenticated ? children : <Navigate to="/signin" />;
 };
 
-// Auth Provider Component
-const AuthProvider = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
-
-  const login = (userData) => {
-    setIsAuthenticated(true);
-    setUser(userData);
-  };
-
-  const logout = () => {
-    setIsAuthenticated(false);
-    setUser(null);
-  };
-
-  return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+// Redirect authenticated users away from auth pages
+const RedirectAuthenticatedUser = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return <div className="text-center py-8">Loading...</div>;
+  return isAuthenticated ? <Navigate to="/dashboard" /> : children;
 };
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-zinc-900 text-white">
+    <Router>
+      <AuthProvider>
+        <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
           <Navbar />
-          <main className="container mx-auto px-4 py-8">
+          <main className="flex-grow container mx-auto px-4 py-8">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/courses" element={<Courses />} />
               <Route path="/courses/:id" element={<CourseDetail />} />
-              <Route path="/signin" element={<SignIn />} />
-              <Route path="/signup" element={<SignUp />} />
+              <Route path="/add-course" element={
+                <ProtectedRoute>
+                  <AddCourse />
+                </ProtectedRoute>
+              } />
+              <Route 
+                path="/signin" 
+                element={
+                  <RedirectAuthenticatedUser>
+                    <SignIn />
+                  </RedirectAuthenticatedUser>
+                } 
+              />
+              <Route 
+                path="/signup" 
+                element={
+                  <RedirectAuthenticatedUser>
+                    <SignUp />
+                  </RedirectAuthenticatedUser>
+                } 
+              />
               <Route
                 path="/dashboard"
                 element={
@@ -82,12 +80,14 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              {/* Catch all unmatched routes */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
           <Footer />
         </div>
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 
