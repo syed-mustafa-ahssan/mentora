@@ -1,9 +1,9 @@
 // components/Footer.jsx
 import React from 'react';
-import { 
-  BookOpen, 
-  Mail, 
-  Phone, 
+import {
+  BookOpen,
+  Mail,
+  Phone,
   MapPin,
   Facebook,
   Twitter,
@@ -164,23 +164,23 @@ const Footer = () => {
               <div className="ml-3">
                 <h4 className="text-sm font-medium text-zinc-200">Email us</h4>
                 <p className="mt-1 text-zinc-400 text-sm">support@mentora.com</p>
-                <p className="text-zinc-400 text-sm">sales@mentora.com</p>
+                <p className="text-zinc-400 text-sm">info@mentora.com</p>
               </div>
             </div>
             <div className="flex items-start">
               <Phone className="h-5 w-5 text-zinc-400 mt-0.5 flex-shrink-0" />
               <div className="ml-3">
                 <h4 className="text-sm font-medium text-zinc-200">Call us</h4>
-                <p className="mt-1 text-zinc-400 text-sm">+1 (555) 123-4567</p>
-                <p className="text-zinc-400 text-sm">Mon-Fri from 8am to 5pm PST</p>
+                <p className="mt-1 text-zinc-400 text-sm">0318-1231231</p>
+                <p className="text-zinc-400 text-sm">Mon-Fri from 9am to 5pm</p>
               </div>
             </div>
             <div className="flex items-start">
               <MapPin className="h-5 w-5 text-zinc-400 mt-0.5 flex-shrink-0" />
               <div className="ml-3">
                 <h4 className="text-sm font-medium text-zinc-200">Visit us</h4>
-                <p className="mt-1 text-zinc-400 text-sm">123 Learning Street</p>
-                <p className="text-zinc-400 text-sm">San Francisco, CA 94107</p>
+                <p className="mt-1 text-zinc-400 text-sm">Lahore</p>
+                <p className="text-zinc-400 text-sm">Punjab, Pakistan</p>
               </div>
             </div>
           </div>

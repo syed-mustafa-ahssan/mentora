@@ -125,7 +125,7 @@ const Navbar = () => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setIsMenuOpen(false)}
-                className={`block px-3 py-2 rounded-md text-base font-medium flex items-center ${isActive(item.path)
+                className={`px-3 py-2 rounded-md text-base font-medium flex items-center ${isActive(item.path)
                     ? "bg-zinc-700 text-white"
                     : "text-zinc-300 hover:bg-zinc-700 hover:text-white"
                   }`}
