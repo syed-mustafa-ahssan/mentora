@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription } = require('../controllers/Controller');
+const { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser } = require('../controllers/Controller');
 
 router.post('/signup', signupUser);
 router.post('/login', loginUser);
@@ -13,6 +13,7 @@ router.delete('/cancel-subscription/:id', cancelSubscription);
 router.get('/course-detail/:id', specificCourse); 
 router.post('/enroll', enrollInCourse);
 router.get('/enrolled-courses/:userId', getEnrolledCourses);
+router.delete('/delete-user/:id', deleteUser);
 
 
 module.exports = router;

@@ -251,5 +251,21 @@ const cancelSubscription = (req, res) => {
   });
 };
 
+//deleate user
+const deleteUser = (req, res) => {
+  const userId = req.params.id;
+  const sql = 'DELETE FROM user WHERE id = ?';
 
-module.exports = { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription };
+  db.query(sql, [userId], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User deleted successfully' });
+  });
+};
+
+
+module.exports = { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser };
