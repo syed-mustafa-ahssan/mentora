@@ -5,7 +5,6 @@ import { apiFetch } from "../src/utils/api";
 import { useAuth } from "../src/contexts/AuthContext";
 import CourseCard from "../component/CourseCard";
 
-
 const Courses = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);

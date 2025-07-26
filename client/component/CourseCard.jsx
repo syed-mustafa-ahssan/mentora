@@ -8,7 +8,7 @@ const CourseCard = ({ course }) => {
   const priceDisplay = course.access_type === 'free' ? (
     <span className="text-lg font-bold text-green-500">Free</span>
   ) : (
-    <span className="text-lg font-bold">${course.price?.toFixed(2) || '0.00'}</span>
+    <span className="text-lg font-bold">{'0.00'}</span>
   );
 
   return (
@@ -46,7 +46,7 @@ const CourseCard = ({ course }) => {
 
         {/* Display teacher name if available */}
         <p className="mt-2 text-zinc-400 text-sm">
-          By {course.teacher_name || course.instructor || "Unknown Instructor"}
+          By {course.teacher_name || course.instructor_name || "Unknown Instructor"}
         </p>
 
         <div className="mt-4 flex items-center justify-between">

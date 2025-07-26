@@ -1,8 +1,7 @@
-// src/pages/AddCourse.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { apiPost } from "../src/utils/api"; // Create this utility function
+import { apiPost } from "../src/utils/api";
 import { useAuth } from "../src/contexts/AuthContext";
 
 const AddCourse = () => {
@@ -13,7 +12,9 @@ const AddCourse = () => {
         material_url: "",
         access_type: "free", // Default to free
         price: "",
-        thumbnail: ""
+        thumbnail: "",
+        level: "beginner", // Default to beginner
+        duration: "",
     });
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
@@ -49,7 +50,8 @@ const AddCourse = () => {
         const courseData = {
             ...formData,
             teacher_id: user.id, // Get teacher ID from auth context
-            price: formData.access_type === 'paid' ? parseFloat(formData.price) || null : null
+            price: formData.access_type === 'paid' ? parseFloat(formData.price) || null : null,
+            duration: formData.duration ? parseFloat(formData.duration) || null : null,
         };
 
         try {
@@ -59,7 +61,7 @@ const AddCourse = () => {
             );
 
             setSuccess("Course created successfully!");
-            // Reset form or redirect
+            // Reset form
             setFormData({
                 title: "",
                 subject: "",
@@ -67,9 +69,11 @@ const AddCourse = () => {
                 material_url: "",
                 access_type: "free",
                 price: "",
-                thumbnail: ""
+                thumbnail: "",
+                level: "beginner",
+                duration: "",
             });
-            // Optionally navigate back to courses page after a delay
+            // Navigate back to courses page after a delay
             setTimeout(() => navigate('/courses'), 2000);
         } catch (err) {
             console.error("API Error:", err);
@@ -166,6 +170,40 @@ const AddCourse = () => {
                         value={formData.thumbnail}
                         onChange={handleChange}
                         placeholder="https://example.com/thumbnail.jpg"
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="level" className="block text-sm font-medium text-zinc-300 mb-1">
+                        Level
+                    </label>
+                    <select
+                        id="level"
+                        name="level"
+                        value={formData.level}
+                        onChange={handleChange}
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label htmlFor="duration" className="block text-sm font-medium text-zinc-300 mb-1">
+                        Duration (hours)
+                    </label>
+                    <input
+                        type="number"
+                        id="duration"
+                        name="duration"
+                        value={formData.duration}
+                        onChange={handleChange}
+                        min="0"
+                        step="0.1"
+                        placeholder="e.g., 10.5"
                         className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                 </div>

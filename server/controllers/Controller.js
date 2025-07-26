@@ -8,7 +8,7 @@ const signupUser = async (req, res) => {
     name,
     email,
     password,
-    role = 'student', 
+    role = 'student',
     phone,
     profile_pic,
     bio,
@@ -132,8 +132,13 @@ const createCourse = (req, res) => {
     thumbnail
   } = req.body;
 
+  // Basic validation
   if (!teacher_id) {
     return res.status(400).json({ error: 'teacher_id is required' });
+  }
+
+  if (!title) {
+    return res.status(400).json({ error: 'title is required' });
   }
 
   // Step 1: Get instructor name from user table
@@ -184,80 +189,108 @@ const createCourse = (req, res) => {
   });
 };
 
-
-// Fetch all courses
+// Fetch all courses (only active ones)
 const getAllCourses = (req, res) => {
-  const sql = 'SELECT * FROM courses';
-
+  // Consider adding pagination, filtering, and sorting in the future
+  const sql = 'SELECT * FROM courses WHERE is_active = 1';
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
 };
 
-// Get courses uploaded by a specific teacher
+// Get courses uploaded by a specific teacher (only active ones)
 const getCoursesByTeacher = (req, res) => {
   const { teacherId } = req.params;
-
-  const sql = 'SELECT * FROM courses WHERE teacher_id = ?';
+  // Optionally filter by status (e.g., published)
+  const sql = 'SELECT * FROM courses WHERE teacher_id = ? AND is_active = 1';
   db.query(sql, [teacherId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
 };
 
-//update course
+// Update course
 const updateCourse = (req, res) => {
   const courseId = req.params.id;
-  const { title, subject, description, material_url } = req.body;
+  const {
+    title,
+    subject,
+    description,
+    material_url,
+    access_type,
+    price,
+    thumbnail,
+    level,
+    duration,
+    category_id,
+    status,
+    is_active
+  } = req.body;
 
-  const sql = `
-    UPDATE courses
-    SET title = ?, subject = ?, description = ?, material_url = ?
-    WHERE id = ?
-  `;
+  // Build dynamic update query to only update provided fields
+  const fields = [];
+  const values = [];
 
-  db.query(sql, [title, subject, description, material_url, courseId], (err, result) => {
+  if (title !== undefined) { fields.push('title = ?'); values.push(title); }
+  if (subject !== undefined) { fields.push('subject = ?'); values.push(subject); }
+  if (description !== undefined) { fields.push('description = ?'); values.push(description); }
+  if (material_url !== undefined) { fields.push('material_url = ?'); values.push(material_url); }
+  if (access_type !== undefined) { fields.push('access_type = ?'); values.push(access_type); }
+  if (price !== undefined) { fields.push('price = ?'); values.push(price); }
+  if (thumbnail !== undefined) { fields.push('thumbnail = ?'); values.push(thumbnail); }
+  if (level !== undefined) { fields.push('level = ?'); values.push(level); }
+  if (duration !== undefined) { fields.push('duration = ?'); values.push(duration); }
+  if (category_id !== undefined) { fields.push('category_id = ?'); values.push(category_id); }
+  if (status !== undefined) { fields.push('status = ?'); values.push(status); }
+  if (is_active !== undefined) { fields.push('is_active = ?'); values.push(is_active); }
+
+  // Always update the updated_at timestamp
+  fields.push('updated_at = CURRENT_TIMESTAMP');
+
+  if (fields.length === 1) { // Only updated_at would be updated
+    return res.status(400).json({ error: 'No fields to update' });
+  }
+
+  const sql = `UPDATE courses SET ${fields.join(', ')} WHERE id = ?`;
+  values.push(courseId);
+
+  db.query(sql, values, (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
-
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Course not found' });
     }
-
     res.json({ message: 'Course updated successfully' });
   });
 };
 
-// delete course
+// Delete course (soft delete)
 const deleteCourse = (req, res) => {
   const courseId = req.params.id;
-  const sql = 'DELETE FROM courses WHERE id = ?';
+  // Soft delete: Mark as inactive and archived
+  const sql = 'UPDATE courses SET is_active = 0, status = "archived" WHERE id = ?';
 
   db.query(sql, [courseId], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
-
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Course not found' });
     }
-
-    res.json({ message: 'Course deleted successfully' });
+    res.json({ message: 'Course archived successfully' });
   });
 };
 
-//show specific course
+// Show specific course (only if active)
 const specificCourse = (req, res) => {
-    const courseId = req.params.id;
-    const sql = "SELECT * FROM courses WHERE id = ?";
-    db.query(sql, [courseId], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-
-        if (result.length === 0) {
-            return res.status(404).json({ error: 'Course not found' });
-        }
-
-        res.json(result[0]);
-    });
-}
+  const courseId = req.params.id;
+  const sql = "SELECT * FROM courses WHERE id = ? AND is_active = 1";
+  db.query(sql, [courseId], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Course not found or inactive' });
+    }
+    res.json(result[0]);
+  });
+};
 
 const enrollInCourse = (req, res) => {
   const { user_id, course_id } = req.body;
@@ -307,17 +340,19 @@ const getEnrolledCourses = (req, res) => {
 
 // cancelSubscription
 const cancelSubscription = (req, res) => {
-  const courseId = req.params.id;
-  const sql = 'DELETE FROM enrollments WHERE id = ?';
+  const { user_id, course_id } = req.body;
 
-  db.query(sql, [courseId], (err, result) => {
+  if (!user_id || !course_id) {
+    return res.status(400).json({ error: 'user_id and course_id are required' });
+  }
+
+  const sql = 'DELETE FROM enrollments WHERE user_id = ? AND course_id = ?';
+  db.query(sql, [user_id, course_id], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
-
     if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Course not found' });
+      return res.status(404).json({ error: 'Enrollment not found' });
     }
-
-    res.json({ message: 'Course deleted successfully' });
+    res.json({ message: 'Successfully unenrolled from course' });
   });
 };
 
