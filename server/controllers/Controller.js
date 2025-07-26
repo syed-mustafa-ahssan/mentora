@@ -88,38 +88,6 @@ const loginUser = (req, res) => {
   });
 };
 
-// Create a course
-// const createCourse = (req, res) => {
-//   const { title, subject, description, material_url, teacher_id, access_type, price, thumbnail } = req.body;
-
-//   if (!teacher_id) {
-//     return res.status(400).json({ error: 'teacher_id is required' });
-//   }
-
-//   const sql = `
-//     INSERT INTO courses (title, subject, description, material_url, teacher_id, access_type, price, thumbnail)
-//     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-//   `;
-
-//   db.query(
-//     sql,
-//     [
-//       title || null,
-//       subject || null,
-//       description || null,
-//       material_url || null,
-//       teacher_id,
-//       access_type || 'free', 
-//       price || null,
-//       thumbnail || null 
-//     ],
-//     (err, result) => {
-//       if (err) return res.status(500).json({ error: err.message });
-//       res.status(201).json({ message: 'Course created', courseId: result.insertId });
-//     }
-//   );
-// };
-
 const createCourse = (req, res) => {
   const {
     title,
@@ -344,12 +312,9 @@ const getEnrolledCourses = (req, res) => {
   });
 };
 
-// controllers/userController.js
 const isUserEnrolled = (req, res) => {
-  // Get user ID from the authenticated request (set by middleware)
-  const userId = req.user?.id;
-  // Get course ID from the URL parameter (corrected route parameter name)
-  const { courseId } = req.params; // <-- Changed from req.params.userId
+  const userId = req.user?.id; // Assuming you have middleware to attach user info from JWT
+  const { courseId } = req.params;
 
   if (!userId) {
     return res.status(401).json({ error: 'Authentication required.' });
@@ -359,10 +324,14 @@ const isUserEnrolled = (req, res) => {
     return res.status(400).json({ error: 'Course ID is required.' });
   }
 
-  // Use userId and courseId for the database query
   const sql = 'SELECT 1 FROM enrollments WHERE user_id = ? AND course_id = ? LIMIT 1';
   db.query(sql, [userId, courseId], (err, results) => {
-    // ... rest of the logic ...
+    if (err) {
+      console.error("Database error checking enrollment:", err);
+      return res.status(500).json({ error: 'Failed to check enrollment status.' });
+    }
+    const isEnrolled = results.length > 0;
+    res.json({ isEnrolled });
   });
 };
 
@@ -400,24 +369,116 @@ const deleteUser = (req, res) => {
   });
 };
 
-//profile update
-const updateProfile = (req, res) => {
-  const userId = req.params.id;
-  const { name, email, phone, profile_pic, bio, subject, qualification, experience_years, linkedin, availability, location } = req.body;
+// controllers/userController.js
 
+// --- Add this utility function ---
+const extractUserIdFromToken = (req) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Ensure JWT_SECRET is set
+    return decoded.id; // Assuming your token payload has 'id'
+  } catch (err) {
+    console.error("Token verification failed:", err);
+    return null; // Invalid token
+  }
+};
+
+// --- Controller function to get user profile ---
+const getUserProfile = (req, res) => {
+  // 1. Get the target user ID from the URL parameter
+  const targetUserId = req.params.userId;
+
+  // 2. Basic validation
+  if (!targetUserId) {
+     return res.status(400).json({ error: 'User ID is required.' });
+  }
+
+  // 3. Proceed with fetching the profile
+  // Select all relevant fields, explicitly excluding password
   const sql = `
-    UPDATE user
-    SET name = ?, email = ?, phone = ?, profile_pic = ?, bio = ?, subject = ?, qualification = ?, experience_years = ?, linkedin = ?, availability = ?, location = ?
+    SELECT id, name, email, role, phone, profile_pic, bio, subject, qualification,
+           experience_years, linkedin, availability, location, created_at
+    FROM user
     WHERE id = ?
   `;
 
-  db.query(sql, [name, email, phone, profile_pic, bio, subject, qualification, experience_years, linkedin, availability, location, userId], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'User not found' });
+  db.query(sql, [targetUserId], (err, results) => {
+    if (err) {
+      console.error("Database error fetching user profile:", err);
+      return res.status(500).json({ error: 'Failed to fetch profile.' });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
     }
 
+    const user = results[0];
+    res.json(user); // Send the user object directly
+  });
+};
+
+//profile update
+const updateProfile = (req, res) => {
+  const userIdFromParams = req.params.id; // Get ID from URL parameter
+  const requestingUserId = extractUserIdFromToken(req); // Get ID from token
+
+  if (!requestingUserId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  if (requestingUserId !== parseInt(userIdFromParams, 10)) {
+    return res.status(403).json({ error: 'Access denied. You can only update your own profile.' });
+  }
+
+  const userId = userIdFromParams; // Use the validated ID
+
+  const {
+    name, email, phone, profile_pic, bio,
+    subject, qualification, experience_years, linkedin, availability, location
+  } = req.body;
+
+  // Build dynamic update query
+  const fields = [];
+  const values = [];
+
+  if (name !== undefined) { fields.push('name = ?'); values.push(name); }
+  if (email !== undefined) { fields.push('email = ?'); values.push(email); }
+  if (phone !== undefined) { fields.push('phone = ?'); values.push(phone); }
+  if (profile_pic !== undefined) { fields.push('profile_pic = ?'); values.push(profile_pic); }
+  if (bio !== undefined) { fields.push('bio = ?'); values.push(bio); }
+  if (subject !== undefined) { fields.push('subject = ?'); values.push(subject); }
+  if (qualification !== undefined) { fields.push('qualification = ?'); values.push(qualification); }
+  // Handle experience_years: allow null, convert string number to int
+  if (experience_years !== undefined) {
+    const expValue = experience_years === '' || experience_years === null ? null : parseInt(experience_years, 10);
+    fields.push('experience_years = ?');
+    values.push(expValue);
+  }
+  if (linkedin !== undefined) { fields.push('linkedin = ?'); values.push(linkedin); }
+  if (availability !== undefined) { fields.push('availability = ?'); values.push(availability); }
+  if (location !== undefined) { fields.push('location = ?'); values.push(location); }
+
+  // Ensure at least one field is being updated (excluding the WHERE clause)
+  if (fields.length === 0) {
+    return res.status(400).json({ error: 'No fields provided to update.' });
+  }
+
+  const sql = `UPDATE user SET ${fields.join(', ')} WHERE id = ?`;
+  values.push(userId); // Add user ID for WHERE clause
+
+  db.query(sql, values, (err, result) => {
+    if (err) {
+      console.error("Database error updating profile:", err);
+      // Handle specific errors like duplicate email if needed
+      return res.status(500).json({ error: 'Failed to update profile.' });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
     res.json({ message: 'Profile updated successfully' });
   });
 };
@@ -460,4 +521,4 @@ const changePassword = (req, res) => {
   });
 };
 
-module.exports = { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword, isUserEnrolled };
+module.exports = { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword, isUserEnrolled,getUserProfile };

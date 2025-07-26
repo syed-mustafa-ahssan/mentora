@@ -17,6 +17,7 @@ import SignUp from "../pages/SignUp";
 import CourseDetail from "../pages/CourseDetail";
 import Footer from "../component/Footer";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import UpdateProfile from "../pages/UpdateProfile";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -48,21 +49,21 @@ function App() {
                   <AddCourse />
                 </ProtectedRoute>
               } />
-              <Route 
-                path="/signin" 
+              <Route
+                path="/signin"
                 element={
                   <RedirectAuthenticatedUser>
                     <SignIn />
                   </RedirectAuthenticatedUser>
-                } 
+                }
               />
-              <Route 
-                path="/signup" 
+              <Route
+                path="/signup"
                 element={
                   <RedirectAuthenticatedUser>
                     <SignUp />
                   </RedirectAuthenticatedUser>
-                } 
+                }
               />
               <Route
                 path="/dashboard"
@@ -80,6 +81,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+                <Route path="/update-profile" element={<UpdateProfile />} />
               {/* Catch all unmatched routes */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

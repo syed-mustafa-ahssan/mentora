@@ -7,6 +7,10 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // --- ADD THIS STATE ---
+  // This state will be used to trigger re-fetches when user data changes
+  const [userUpdateTrigger, setUserUpdateTrigger] = useState({});
+
   const navigate = useNavigate();
 
   // Check if user is logged in on mount
@@ -26,7 +30,7 @@ export const AuthProvider = ({ children }) => {
       }
     }
     setLoading(false);
-  }, []);
+  }, []); // Only run on mount
 
   const login = (token) => {
     try {
@@ -48,12 +52,22 @@ export const AuthProvider = ({ children }) => {
     navigate("/signin");
   };
 
+  // --- ADD THIS FUNCTION ---
+  // Call this function after successfully updating user profile data on the backend
+  const triggerUserUpdate = () => {
+    // Update the object to trigger re-renders for components depending on it
+    setUserUpdateTrigger(prev => ({ ...prev, timestamp: Date.now() }));
+  };
+
   const value = {
     user,
     login,
     logout,
     isAuthenticated: !!user,
     loading,
+    // --- ADD THIS TO THE CONTEXT VALUE ---
+    userUpdateTrigger,
+    triggerUserUpdate,
   };
 
   return (

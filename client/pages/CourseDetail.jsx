@@ -1,5 +1,5 @@
 // pages/CourseDetail.jsx
-import React, { useState, useEffect, useMemo, useRef } from "react"; // Added useRef
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   BookOpen,
@@ -24,10 +24,10 @@ const CourseDetail = () => {
   const { isAuthenticated, user } = useAuth();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(""); // Error for the main page
+  const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
-  const [isEnrolled, setIsEnrolled] = useState(false);
-  const [checkingEnrollment, setCheckingEnrollment] = useState(true); // Start checking
+  const [isEnrolled, setIsEnrolled] = useState(false); // State to track enrollment
+  const [checkingEnrollment, setCheckingEnrollment] = useState(true); // State for enrollment check loading
 
   // --- Modal State ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,7 +37,6 @@ const CourseDetail = () => {
     goals: "",
   });
   const [isEnrolling, setIsEnrolling] = useState(false); // State for enrollment process
-  const [modalError, setModalError] = useState(""); // Error specifically for the modal
 
   // Memoize material type detection
   const materialType = useMemo(() => {
@@ -46,59 +45,22 @@ const CourseDetail = () => {
     if (url.endsWith(".pdf")) return "pdf";
     if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
     if (url.endsWith(".mp4") || url.endsWith(".webm") || url.endsWith(".ogg")) return "video";
-    return "iframe";
+    return "iframe"; // Fallback for other embeddable content
   }, [course?.material_url]);
 
-  // Ref to track if the component is mounted
-  const isMountedRef = useRef(true);
-
   useEffect(() => {
-    // Cleanup function to set isMountedRef to false when component unmounts
-    return () => {
-      console.log("CourseDetail component unmounting."); // --- Debugging Log ---
-      isMountedRef.current = false;
-    };
-  }, []); // Empty dependency array, runs only on mount/unmount
+    if (!id) return;
 
-  useEffect(() => {
-    // --- Debugging Log ---
-    console.log("useEffect (fetchCourseDetails) triggered. Course ID:", id);
-  
-    if (!id) {
-      console.warn("Course ID is missing, skipping fetch.");
-      // Even if ID is missing, we should stop loading to show the 'not found' state
-      // or handle it gracefully. Let's set loading to false here.
-      if (isMountedRef.current) { // Check mount status if using useRef fix
-         setLoading(false);
-         setError("Course ID is missing.");
-      }
-      return;
-    }
-  
     const fetchCourseDetails = async () => {
-      // Ensure loading starts
-      if (isMountedRef.current) { // Check mount status if using useRef fix
-          setLoading(true);
-          setError(""); // Clear previous errors
-      }
-  
+      setLoading(true);
+      setError("");
       try {
         const token = localStorage.getItem("token");
-        console.log("Attempting to fetch course details for ID:", id); // --- Debugging Log ---
         const response = await apiFetch(
           `http://localhost:5000/api/users/course-detail/${id}`,
-          {}, // Options
+          {},
           token
         );
-        console.log("Course details fetched successfully:", response); // --- Debugging Log ---
-  
-        // Process response only if component is still mounted
-        if (!isMountedRef.current) {
-          console.log("Component unmounted, discarding fetched course data.");
-          return;
-        }
-  
-        // Assuming backend returns course data with instructor_name, rating, enrollment_count
         setCourse({
           ...response,
           instructor_name: response.instructor_name || "Unknown Instructor",
@@ -123,108 +85,71 @@ const CourseDetail = () => {
             avatar: response.instructor_avatar || "https://placehold.co/100x100/18181b/ffffff?text=Instructor",
           },
         });
-        console.log("Course state updated."); // --- Debugging Log ---
       } catch (err) {
-        console.error("API Error fetching course details:", err); // --- Critical Debugging Log ---
-        // Update state only if mounted
-        if (!isMountedRef.current) return;
-  
+        console.error("API Error fetching course:", err);
         setError(
           err.response?.status === 404
             ? "Course not found."
-            : `Failed to load course details: ${err.message || err}` // Provide more error detail
+            : "Failed to load course details. Please try again later."
         );
       } finally {
-        console.log("Finally block reached for fetchCourseDetails."); // --- Debugging Log ---
-        // Crucially, always attempt to stop loading if mounted
-        if (isMountedRef.current) {
-           setLoading(false);
-           console.log("Loading state set to false."); // --- Debugging Log ---
-        } else {
-           console.log("Component unmounted, skipping setLoading(false)."); // --- Debugging Log ---
-        }
+        setLoading(false);
       }
     };
-  
+
     fetchCourseDetails();
-  }, [id]); // Ensure id is the only dependency
+  }, [id]);
 
   // --- Check Enrollment Status Effect ---
   useEffect(() => {
-    // Capture the current courseId in this render cycle
-    const courseId = id;
-    // Create an AbortController for this specific fetch
-    const abortController = new AbortController();
-
     const checkEnrollmentStatus = async () => {
-      // Reset state at the beginning of the check for this specific course
-      if (isMountedRef.current) {
-        setCheckingEnrollment(true);
-        setIsEnrolled(false); // Assume not enrolled initially
-      }
+      // Crucial: Reset state at the beginning of the check
+      setCheckingEnrollment(true);
+      setIsEnrolled(false); // Assume not enrolled until confirmed
 
-      if (!isAuthenticated || !user?.id || !courseId) {
-        if (isMountedRef.current) {
-          setCheckingEnrollment(false);
-        }
+      if (!isAuthenticated || !user?.id || !id) {
+        // If any prerequisite is missing, we're not enrolled and done checking
+        setCheckingEnrollment(false);
         return;
       }
 
       try {
         const token = localStorage.getItem("token");
-        // Pass the signal to apiFetch (assuming your apiFetch supports it)
+        // Make sure the endpoint `/api/users/is-enrolled/${id}` exists on your backend
         const response = await apiFetch(
-          `http://localhost:5000/api/users/is-enrolled/${courseId}`,
-          { signal: abortController.signal }, // Include signal
-          token
+          `http://localhost:5000/api/users/is-enrolled/${id}`,
+          {}, // Options
+          token  // Pass token for authentication
         );
-
-        // Check if component is still mounted and courseId hasn't changed
-        if (isMountedRef.current && courseId === id) {
-          setIsEnrolled(response.isEnrolled);
-        }
+        // Assuming the backend returns { isEnrolled: true/false }
+        setIsEnrolled(response.isEnrolled);
       } catch (err) {
-        // Ignore errors if the request was aborted (due to unmount or ID change)
-        if (err.name === 'AbortError') {
-          console.log("Enrollment check aborted");
-          return;
-        }
         console.error("Error checking enrollment status:", err);
-        // Only update state if still relevant
-        if (isMountedRef.current && courseId === id) {
-          setIsEnrolled(false); // Default to not enrolled on error
-          // Optionally set a main page error if needed
-          // setError("Could not verify enrollment status.");
-        }
+        // On error (e.g., network issue, 404 if endpoint missing), assume not enrolled
+        // Optionally set a specific error message if needed
+        // setError("Could not verify enrollment status.");
+        setIsEnrolled(false);
       } finally {
-        // Always stop checking when the API call finishes (if still relevant)
-        if (isMountedRef.current && courseId === id) {
-          setCheckingEnrollment(false);
-        }
+        // Always stop checking when the API call finishes (success or error)
+        setCheckingEnrollment(false);
       }
     };
 
     checkEnrollmentStatus();
-
-    // Cleanup function: abort the fetch if the effect re-runs or component unmounts
-    return () => {
-      abortController.abort();
-    };
-  }, [isAuthenticated, user?.id, id]); // Re-run when auth state, user ID, or course ID (from params) changes
+  }, [isAuthenticated, user?.id, id]); // Re-run when auth state, user ID, or course ID changes
 
 
   const handleEnroll = async () => {
-    if (!isAuthenticated) {
-      navigate("/signin");
-      return;
-    }
+    // if (!isAuthenticated) {
+    //   navigate("/signin");
+    //   return;
+    // }
     if (!user?.id) {
       setError("User information is missing. Please sign in again.");
       return;
     }
+    // Open the modal to collect requirements instead of enrolling directly
     setIsModalOpen(true);
-    // Clear any previous modal error when opening
-    setModalError("");
   };
 
   // --- Handle Modal Form Changes ---
@@ -235,68 +160,53 @@ const CourseDetail = () => {
 
   // --- Handle Actual Enrollment after Modal ---
   const confirmEnrollment = async () => {
-    if (!isAuthenticated || !user?.id || !id) return;
+    if ( !user?.id || !id) return;
 
     setIsEnrolling(true);
-    setModalError(""); // Clear previous modal errors
-
+    setError(""); // Clear previous errors
     try {
       const token = localStorage.getItem("token");
-      console.log("Enrollment Requirements Submitted:", requirements);
 
+      // 1. Submit Requirements (Optional: Create an endpoint for this if you want to store them)
+      // For now, we'll just log them or handle them client-side
+      console.log("Enrollment Requirements Submitted:", requirements);
+      // Example API call to store requirements (if backend endpoint exists):
+      // await apiPost('http://localhost:5000/api/users/enrollment-requirements', { course_id: parseInt(id), ...requirements }, token);
+
+      // 2. Enroll the user
       await apiPost(
         "http://localhost:5000/api/users/enroll",
         { user_id: user.id, course_id: parseInt(id, 10) },
         token
       );
 
-      // On successful enrollment
-      if (isMountedRef.current) {
-        setIsEnrolled(true);
-        // alert("Successfully enrolled in the course!"); // Optional
-        setIsModalOpen(false); // Close the modal
-        setRequirements({ system: "", timeCommitment: "", goals: "" }); // Reset form
-      }
+      // 3. Update local state
+      setIsEnrolled(true);
+      alert("Successfully enrolled in the course!");
+      setIsModalOpen(false); // Close the modal
+      setRequirements({ system: "", timeCommitment: "", goals: "" }); // Reset form
+      // Optionally navigate to dashboard or learning page
+      // navigate("/dashboard");
     } catch (err) {
       console.error("Enrollment Error:", err);
-      // --- Critical Fix: Handle 409 Conflict ---
-      if (err.response?.status === 409) {
-        // User is already enrolled
-        if (isMountedRef.current) {
-          setIsEnrolled(true); // Crucial: Set state to enrolled
-          // alert("You are already enrolled in this course."); // Optional
-          setIsModalOpen(false); // Crucial: Close the modal
-          setRequirements({ system: "", timeCommitment: "", goals: "" }); // Reset form
-          setModalError(""); // Crucial: Clear modal error as it's handled
-        }
+      if (err.response?.status === 409) { // Assuming backend sends 409 for conflicts
+        setError("You are already enrolled in this course.");
+        setIsEnrolled(true); // Set state to enrolled even if API reports conflict
+        setIsModalOpen(false); // Close modal
       } else {
-        // Handle other errors
-        const errorMessage = err.response?.data?.error || "Failed to enroll. Please try again.";
-        if (isMountedRef.current) {
-          setModalError(errorMessage); // Show error inside the modal
-          // Do NOT close the modal or reset form here
-        }
+        setError("Failed to enroll in the course. Please try again.");
       }
     } finally {
-      if (isMountedRef.current) {
-        setIsEnrolling(false);
-      }
+      setIsEnrolling(false);
     }
   };
 
   // --- Close Modal Handler ---
   const closeModal = () => {
     setIsModalOpen(false);
-    setRequirements({ system: "", timeCommitment: "", goals: "" });
-    setModalError(""); // Clear modal error on close
+    setRequirements({ system: "", timeCommitment: "", goals: "" }); // Reset form on close
+    setError(""); // Clear error on close
   };
-
-  // --- Cleanup on unmount ---
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
 
   if (loading) {
     return (
@@ -308,7 +218,7 @@ const CourseDetail = () => {
       </div>
     );
   }
-  if (error && !loading) {
+  if (error && !loading) { // Show error if not loading
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-center">
@@ -410,18 +320,18 @@ const CourseDetail = () => {
               <div className="flex items-center justify-between mb-4">
                 {priceDisplay}
                 <button
-                  onClick={handleEnroll}
-                  disabled={checkingEnrollment || isEnrolling || isEnrolled}
-                  className={`py-2 px-6 rounded-lg font-medium transition duration-300 ${
-                    checkingEnrollment
-                      ? "bg-indigo-400 cursor-not-allowed"
+                  onClick={handleEnroll} // Opens modal now
+                  disabled={  isEnrolling } // Disable if enrolled, checking, or enrolling
+                  className={`py-2 px-6 rounded-lg font-medium transition duration-300 ${checkingEnrollment
+                      ? "bg-indigo-400 cursor-not-allowed" // While checking
                       : isEnrolling
-                        ? "bg-indigo-400 cursor-not-allowed"
+                        ? "bg-indigo-400 cursor-not-allowed" // While enrolling (in modal)
                         : isEnrolled
-                          ? "bg-green-600 cursor-not-allowed"
-                          : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                  }`}
+                          ? "bg-green-600 cursor-not-allowed" // After enrolled
+                          : "bg-indigo-600 hover:bg-indigo-700 text-white" // Default state
+                    }`}
                 >
+                  {/* --- Improved Button Text Logic --- */}
                   {checkingEnrollment ? "Checking..." : isEnrolling ? "Enrolling..." : isEnrolled ? "Enrolled" : "Enroll Now"}
                 </button>
               </div>
@@ -467,6 +377,7 @@ const CourseDetail = () => {
               <p className="text-zinc-300 mb-8">{course.description || "No description available."}</p>
 
               {/* --- Conditional Material Preview Section --- */}
+              {/* Only render if we are sure the user is enrolled */}
               {isEnrolled && course?.material_url && (
                 <div className="mt-8">
                   <h2 className="text-xl font-bold mb-4 flex items-center">
@@ -476,7 +387,7 @@ const CourseDetail = () => {
                     )}
                     Preview Material
                   </h2>
-                  <div className="bg-zinc-800 rounded-xl p-4 min-h-[500px] relative">
+                  <div className="bg-zinc-800 rounded-xl p-4 min-h-[500px] relative"> {/* Adjusted min height */}
                     {materialType === "pdf" ? (
                       <embed
                         src={`${course.material_url}#toolbar=0&navpanes=0&scrollbar=0`}
@@ -510,11 +421,11 @@ const CourseDetail = () => {
                         );
                       })()
                     ) : materialType === "video" ? (
-                      <div className="w-full h-full absolute inset-0 flex items-center justify-center">
+                      <div className="w-full h-full absolute inset-0 flex items-center justify-center"> {/* Ensure video container fills */}
                         <video
                           src={course.material_url}
                           controls
-                          className="w-full h-full rounded-lg max-w-full max-h-full"
+                          className="w-full h-full rounded-lg max-w-full max-h-full" // Prevent overflow
                           title={`Video preview for ${course.title}`}
                         >
                           Your browser does not support the video tag.
@@ -647,7 +558,7 @@ const CourseDetail = () => {
 
       {/* --- Enrollment Requirements Modal --- */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 bg-opacity-70">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
           <div className="bg-zinc-800 rounded-xl p-6 w-full max-w-md relative">
             <button
               onClick={closeModal}
@@ -658,10 +569,9 @@ const CourseDetail = () => {
             </button>
             <h2 className="text-xl font-bold mb-4">Enrollment Requirements</h2>
             <p className="text-zinc-400 mb-4">Please provide the following information to enroll:</p>
-            {/* Display error message inside the modal if present */}
-            {modalError && (
+            {error && ( // Display error inside modal if present
               <div className="bg-red-500/20 border border-red-500/30 text-red-400 px-3 py-2 rounded-lg text-sm mb-4">
-                {modalError}
+                {error}
               </div>
             )}
             <form onSubmit={(e) => { e.preventDefault(); confirmEnrollment(); }}>
@@ -725,11 +635,10 @@ const CourseDetail = () => {
                 <button
                   type="submit"
                   disabled={isEnrolling}
-                  className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition ${
-                    isEnrolling
+                  className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition ${isEnrolling
                       ? "bg-indigo-400 cursor-not-allowed"
                       : "bg-indigo-600 hover:bg-indigo-700"
-                  }`}
+                    }`}
                 >
                   {isEnrolling ? "Enrolling..." : "Confirm Enrollment"}
                 </button>
