@@ -129,7 +129,9 @@ const createCourse = (req, res) => {
     teacher_id,
     access_type,
     price,
-    thumbnail
+    thumbnail,
+    level,        // Added level
+    duration,     // Added duration
   } = req.body;
 
   // Basic validation
@@ -163,9 +165,11 @@ const createCourse = (req, res) => {
         access_type,
         price,
         thumbnail,
-        instructor_name
+        instructor_name,
+        level,
+        duration
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     db.query(
@@ -179,7 +183,9 @@ const createCourse = (req, res) => {
         access_type || 'free',
         price || null,
         thumbnail || null,
-        instructor_name
+        instructor_name,
+        level || null,    // Use level from req.body or null
+        duration || null  // Use duration from req.body or null
       ],
       (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -338,6 +344,28 @@ const getEnrolledCourses = (req, res) => {
   });
 };
 
+// controllers/userController.js
+const isUserEnrolled = (req, res) => {
+  // Get user ID from the authenticated request (set by middleware)
+  const userId = req.user?.id;
+  // Get course ID from the URL parameter (corrected route parameter name)
+  const { courseId } = req.params; // <-- Changed from req.params.userId
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+
+  if (!courseId) {
+    return res.status(400).json({ error: 'Course ID is required.' });
+  }
+
+  // Use userId and courseId for the database query
+  const sql = 'SELECT 1 FROM enrollments WHERE user_id = ? AND course_id = ? LIMIT 1';
+  db.query(sql, [userId, courseId], (err, results) => {
+    // ... rest of the logic ...
+  });
+};
+
 // cancelSubscription
 const cancelSubscription = (req, res) => {
   const { user_id, course_id } = req.body;
@@ -432,4 +460,4 @@ const changePassword = (req, res) => {
   });
 };
 
-module.exports = { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword };
+module.exports = { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword, isUserEnrolled };

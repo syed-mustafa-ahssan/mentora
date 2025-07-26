@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword } = require('../controllers/Controller');
+const { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword, isUserEnrolled } = require('../controllers/Controller');
 
 router.post('/signup', signupUser);
 router.post('/login', loginUser);
@@ -10,9 +10,10 @@ router.get('/course-by-teacher/:teacherId', getCoursesByTeacher);
 router.put('/course-update/:id', updateCourse);
 router.delete('/course-delete/:id', deleteCourse);
 router.delete('/cancel-subscription/:id', cancelSubscription);
-router.get('/course-detail/:id', specificCourse); 
+router.get('/course-detail/:id', specificCourse);
 router.post('/enroll', enrollInCourse);
 router.get('/enrolled-courses/:userId', getEnrolledCourses);
+router.get('/is-enrolled/:userId', isUserEnrolled);
 router.delete('/delete-user/:id', deleteUser);
 router.put('/update-profile/:id', updateProfile);
 router.put('/change-password', changePassword);

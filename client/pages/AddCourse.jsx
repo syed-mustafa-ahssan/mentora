@@ -20,7 +20,7 @@ const AddCourse = () => {
     const [success, setSuccess] = useState("");
     const [loading, setLoading] = useState(false);
 
-    const { user } = useAuth();
+    const { user, token } = useAuth(); // Destructure token from useAuth
     const navigate = useNavigate();
 
     // Handle input changes
@@ -40,8 +40,13 @@ const AddCourse = () => {
         setSuccess("");
 
         // Basic validation
-        if (!formData.title || !formData.subject) {
-            setError("Title and Subject are required.");
+        if (!user?.id) {
+            setError("Teacher ID is required. Please sign in.");
+            setLoading(false);
+            return;
+        }
+        if (!formData.title) {
+            setError("Title is required.");
             setLoading(false);
             return;
         }
@@ -49,7 +54,7 @@ const AddCourse = () => {
         // Prepare data for API call
         const courseData = {
             ...formData,
-            teacher_id: user.id, // Get teacher ID from auth context
+            teacher_id: user.id, // Use teacher_id from auth context
             price: formData.access_type === 'paid' ? parseFloat(formData.price) || null : null,
             duration: formData.duration ? parseFloat(formData.duration) || null : null,
         };
@@ -57,8 +62,10 @@ const AddCourse = () => {
         try {
             const response = await apiPost(
                 "http://localhost:5000/api/users/course-upload",
-                courseData
+                courseData,
+                token // Pass the token from useAuth
             );
+            console.log(response)
 
             setSuccess("Course created successfully!");
             // Reset form
@@ -77,7 +84,11 @@ const AddCourse = () => {
             setTimeout(() => navigate('/courses'), 2000);
         } catch (err) {
             console.error("API Error:", err);
-            setError(err.message || "Failed to create course. Please try again.");
+            setError(
+                err.response?.data?.error ||
+                err.message ||
+                "Failed to create course. Please check your network or try again later."
+            );
         } finally {
             setLoading(false);
         }
@@ -117,7 +128,7 @@ const AddCourse = () => {
 
                 <div>
                     <label htmlFor="subject" className="block text-sm font-medium text-zinc-300 mb-1">
-                        Subject *
+                        Subject
                     </label>
                     <input
                         type="text"
@@ -125,7 +136,6 @@ const AddCourse = () => {
                         name="subject"
                         value={formData.subject}
                         onChange={handleChange}
-                        required
                         className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                 </div>
