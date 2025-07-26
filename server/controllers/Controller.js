@@ -89,35 +89,99 @@ const loginUser = (req, res) => {
 };
 
 // Create a course
+// const createCourse = (req, res) => {
+//   const { title, subject, description, material_url, teacher_id, access_type, price, thumbnail } = req.body;
+
+//   if (!teacher_id) {
+//     return res.status(400).json({ error: 'teacher_id is required' });
+//   }
+
+//   const sql = `
+//     INSERT INTO courses (title, subject, description, material_url, teacher_id, access_type, price, thumbnail)
+//     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+//   `;
+
+//   db.query(
+//     sql,
+//     [
+//       title || null,
+//       subject || null,
+//       description || null,
+//       material_url || null,
+//       teacher_id,
+//       access_type || 'free', 
+//       price || null,
+//       thumbnail || null 
+//     ],
+//     (err, result) => {
+//       if (err) return res.status(500).json({ error: err.message });
+//       res.status(201).json({ message: 'Course created', courseId: result.insertId });
+//     }
+//   );
+// };
+
 const createCourse = (req, res) => {
-  const { title, subject, description, material_url, teacher_id, access_type, price, thumbnail } = req.body;
+  const {
+    title,
+    subject,
+    description,
+    material_url,
+    teacher_id,
+    access_type,
+    price,
+    thumbnail
+  } = req.body;
 
   if (!teacher_id) {
     return res.status(400).json({ error: 'teacher_id is required' });
   }
 
-  const sql = `
-    INSERT INTO courses (title, subject, description, material_url, teacher_id, access_type, price, thumbnail)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `;
+  // Step 1: Get instructor name from user table
+  const getInstructorSql = 'SELECT name FROM user WHERE id = ?';
+  db.query(getInstructorSql, [teacher_id], (err, userResult) => {
+    if (err) return res.status(500).json({ error: err.message });
 
-  db.query(
-    sql,
-    [
-      title || null,
-      subject || null,
-      description || null,
-      material_url || null,
-      teacher_id,
-      access_type || 'free', 
-      price || null,
-      thumbnail || null 
-    ],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.status(201).json({ message: 'Course created', courseId: result.insertId });
+    if (userResult.length === 0) {
+      return res.status(404).json({ error: 'Teacher not found' });
     }
-  );
+
+    const instructor_name = userResult[0].name;
+
+    // Step 2: Insert the course
+    const insertSql = `
+      INSERT INTO courses (
+        title,
+        subject,
+        description,
+        material_url,
+        teacher_id,
+        access_type,
+        price,
+        thumbnail,
+        instructor_name
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    db.query(
+      insertSql,
+      [
+        title || null,
+        subject || null,
+        description || null,
+        material_url || null,
+        teacher_id,
+        access_type || 'free',
+        price || null,
+        thumbnail || null,
+        instructor_name
+      ],
+      (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ message: 'Course created', courseId: result.insertId });
+      }
+    );
+  });
 };
 
 
