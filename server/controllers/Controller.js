@@ -312,6 +312,7 @@ const getEnrolledCourses = (req, res) => {
   });
 };
 
+// extra function
 const isUserEnrolled = (req, res) => {
   const userId = req.user?.id; // Assuming you have middleware to attach user info from JWT
   const { courseId } = req.params;
@@ -390,37 +391,62 @@ const extractUserIdFromToken = (req) => {
 };
 
 // --- Controller function to get user profile ---
-const getUserProfile = (req, res) => {
-  // 1. Get the target user ID from the URL parameter
-  const targetUserId = req.params.userId;
+// const getUserProfile = (req, res) => {
+//   // 1. Get the target user ID from the URL parameter
+//   const targetUserId = req.params.userId;
 
-  // 2. Basic validation
-  if (!targetUserId) {
-     return res.status(400).json({ error: 'User ID is required.' });
+//   // 2. Basic validation
+//   if (!targetUserId) {
+//      return res.status(400).json({ error: 'User ID is required.' });
+//   }
+
+//   // 3. Proceed with fetching the profile
+//   // Select all relevant fields, explicitly excluding password
+//   const sql = `
+//     SELECT id, name, email, role, phone, profile_pic, bio, subject, qualification,
+//            experience_years, linkedin, availability, location, created_at
+//     FROM user
+//     WHERE id = ?
+//   `;
+
+//   db.query(sql, [targetUserId], (err, results) => {
+//     if (err) {
+//       console.error("Database error fetching user profile:", err);
+//       return res.status(500).json({ error: 'Failed to fetch profile.' });
+//     }
+//     if (results.length === 0) {
+//       return res.status(404).json({ error: 'User not found.' });
+//     }
+
+//     const user = results[0];
+//     res.json(user); // Send the user object directly
+//   });
+// };
+// controllers/userController.js
+const getUserProfile = (req, res) => {
+  const userId = req.params.userId;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required.' });
   }
 
-  // 3. Proceed with fetching the profile
-  // Select all relevant fields, explicitly excluding password
-  const sql = `
-    SELECT id, name, email, role, phone, profile_pic, bio, subject, qualification,
-           experience_years, linkedin, availability, location, created_at
-    FROM user
-    WHERE id = ?
-  `;
+  const sql = `SELECT * FROM user WHERE id = ?`;
 
-  db.query(sql, [targetUserId], (err, results) => {
+  db.query(sql, [userId], (err, results) => {
     if (err) {
-      console.error("Database error fetching user profile:", err);
-      return res.status(500).json({ error: 'Failed to fetch profile.' });
+      console.error("Error fetching user:", err);
+      return res.status(500).json({ error: 'Internal server error' });
     }
     if (results.length === 0) {
-      return res.status(404).json({ error: 'User not found.' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     const user = results[0];
-    res.json(user); // Send the user object directly
+    delete user.password; // remove sensitive data
+    res.json(user);
   });
 };
+
 
 //profile update
 const updateProfile = (req, res) => {
