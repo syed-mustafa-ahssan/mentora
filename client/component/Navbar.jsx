@@ -10,6 +10,7 @@ import {
   Home,
   LogOut,
   LogIn,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "../src/contexts/AuthContext";
 
@@ -17,7 +18,7 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth(); // Assuming user object contains role
 
   const handleSignOut = () => {
     logout();
@@ -35,6 +36,14 @@ const Navbar = () => {
       { name: "Dashboard", path: "/dashboard", icon: <BarChart2 size={20} /> },
       { name: "Profile", path: "/profile", icon: <User size={20} /> }
     );
+    // Add Admin Dashboard link if user is admin
+    if (user?.role === "admin") {
+      navItems.push({
+        name: "Admin Dashboard",
+        path: "/admin",
+        icon: <Shield size={20} />,
+      });
+    }
   }
 
   const isActive = (path) => {
@@ -58,10 +67,11 @@ const Navbar = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`px-3 py-2 rounded-md text-sm font-medium flex items-center transition-colors ${isActive(item.path)
+                  className={`px-3 py-2 rounded-md text-sm font-medium flex items-center transition-colors ${
+                    isActive(item.path)
                       ? "bg-zinc-700 text-white"
                       : "text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                    }`}
+                  }`}
                 >
                   <span className="mr-2">{item.icon}</span>
                   {item.name}
@@ -125,10 +135,11 @@ const Navbar = () => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setIsMenuOpen(false)}
-                className={`px-3 py-2 rounded-md text-base font-medium flex items-center ${isActive(item.path)
+                className={`px-3 py-2 rounded-md text-base font-medium flex items-center ${
+                  isActive(item.path)
                     ? "bg-zinc-700 text-white"
                     : "text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                  }`}
+                }`}
               >
                 <span className="mr-3">{item.icon}</span>
                 {item.name}

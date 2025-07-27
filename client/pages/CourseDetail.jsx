@@ -101,31 +101,31 @@ const CourseDetail = () => {
   // --- Check Enrollment Status Effect ---
   useEffect(() => {
     const checkEnrollmentStatus = async () => {
-      setCheckingEnrollment(true);
-      setIsEnrolled(false); // Reset to false until confirmed
-
-      if (!isAuthenticated || !user?.id || !id) {
+      // Skip enrollment check for teachers or admins
+      if (!isAuthenticated || !user?.id || !id || ["teacher", "admin"].includes(user?.role)) {
         setCheckingEnrollment(false);
+        setIsEnrolled(false);
         return;
       }
 
+      setCheckingEnrollment(true);
+      setIsEnrolled(false);
+
       try {
-        // Use the updated isUserEnrolled endpoint with userId in path and courseId as query parameter
         const response = await apiFetch(
           `http://localhost:5000/api/users/is-enrolled/${user.id}?courseId=${id}`
         );
-        
         setIsEnrolled(response.isEnrolled);
       } catch (err) {
         console.error("Error checking enrollment status:", err);
-        setIsEnrolled(false); // Assume not enrolled on error
+        setIsEnrolled(false);
       } finally {
         setCheckingEnrollment(false);
       }
     };
 
     checkEnrollmentStatus();
-  }, [isAuthenticated, user?.id, id]);
+  }, [isAuthenticated, user?.id, user?.role, id]);
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
@@ -300,28 +300,37 @@ const CourseDetail = () => {
               </span>
             </div>
             {isAuthenticated ? (
-              <div className="flex items-center justify-between mb-4">
-                {priceDisplay}
-                <button
-                  onClick={handleEnroll}
-                  disabled={checkingEnrollment || isEnrolling || isEnrolled}
-                  className={`py-2 px-6 rounded-lg font-medium transition duration-300 ${
-                    checkingEnrollment || isEnrolling
-                      ? "bg-indigo-400 cursor-not-allowed"
+              !["teacher", "admin"].includes(user?.role) ? (
+                <div className="flex items-center justify-between mb-4">
+                  {priceDisplay}
+                  <button
+                    onClick={handleEnroll}
+                    disabled={checkingEnrollment || isEnrolling || isEnrolled}
+                    className={`py-2 px-6 rounded-lg font-medium transition duration-300 ${
+                      checkingEnrollment || isEnrolling
+                        ? "bg-indigo-400 cursor-not-allowed"
+                        : isEnrolled
+                        ? "bg-green-600 cursor-not-allowed"
+                        : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                    }`}
+                  >
+                    {checkingEnrollment
+                      ? "Checking..."
+                      : isEnrolling
+                      ? "Enrolling..."
                       : isEnrolled
-                      ? "bg-green-600 cursor-not-allowed"
-                      : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                  }`}
-                >
-                  {checkingEnrollment
-                    ? "Checking..."
-                    : isEnrolling
-                    ? "Enrolling..."
-                    : isEnrolled
-                    ? "Enrolled"
-                    : "Enroll Now"}
-                </button>
-              </div>
+                      ? "Enrolled"
+                      : "Enroll Now"}
+                  </button>
+                </div>
+              ) : (
+                <div className="mb-4">
+                  {priceDisplay}
+                  <p className="text-zinc-400 text-sm mt-2">
+                    Enrollment is not available for {user?.role} accounts.
+                  </p>
+                </div>
+              )
             ) : (
               <div className="bg-zinc-900 rounded-lg p-4 mb-4">
                 <p className="text-center text-zinc-300 mb-3">Sign in to enroll in this course</p>
@@ -336,7 +345,7 @@ const CourseDetail = () => {
           </div>
         </div>
       </div>
-
+      
       {/* Tabs */}
       <div className="border-b border-zinc-700 mb-8">
         <nav className="flex space-x-8">
@@ -638,658 +647,3 @@ const CourseDetail = () => {
 };
 
 export default CourseDetail;
-// // pages/CourseDetail.jsx
-// import React, { useState, useEffect, useMemo } from "react";
-// import { useParams, useNavigate, Link } from "react-router-dom";
-// import {
-//   BookOpen,
-//   Users,
-//   Star,
-//   Clock,
-//   Play,
-//   Download,
-//   CheckCircle,
-//   Award,
-//   User,
-//   FileText,
-//   Video,
-//   X, // Icon for closing modal
-// } from "lucide-react";
-// import { apiFetch, apiPost } from "../src/utils/api"; // Ensure apiPost is imported
-// import { useAuth } from "../src/contexts/AuthContext";
-
-// const CourseDetail = () => {
-//   const { id } = useParams();
-//   const navigate = useNavigate();
-//   const { isAuthenticated, user } = useAuth();
-//   const [course, setCourse] = useState(null);
-//   const [loading, setLoading] = useState(true);
-//   const [error, setError] = useState("");
-//   const [activeTab, setActiveTab] = useState("overview");
-//   const [isEnrolled, setIsEnrolled] = useState(false); // State to track enrollment
-//   const [checkingEnrollment, setCheckingEnrollment] = useState(true); // State for enrollment check loading
-
-//   // --- Modal State ---
-//   const [isModalOpen, setIsModalOpen] = useState(false);
-//   const [requirements, setRequirements] = useState({
-//     system: "",
-//     timeCommitment: "",
-//     goals: "",
-//   });
-//   const [isEnrolling, setIsEnrolling] = useState(false); // State for enrollment process
-
-//   // Memoize material type detection
-//   const materialType = useMemo(() => {
-//     if (!course?.material_url) return null;
-//     const url = course.material_url.toLowerCase();
-//     if (url.endsWith(".pdf")) return "pdf";
-//     if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
-//     if (url.endsWith(".mp4") || url.endsWith(".webm") || url.endsWith(".ogg")) return "video";
-//     return "iframe"; // Fallback for other embeddable content
-//   }, [course?.material_url]);
-
-//   useEffect(() => {
-//     if (!id) return;
-
-//     const fetchCourseDetails = async () => {
-//       setLoading(true);
-//       setError("");
-//       try {
-//         const token = localStorage.getItem("token");
-//         const response = await apiFetch(
-//           `http://localhost:5000/api/users/course-detail/${id}`,
-//           {},
-//           token
-//         );
-//         setCourse({
-//           ...response,
-//           instructor_name: response.instructor_name || "Unknown Instructor",
-//           rating: response.rating || 4.5,
-//           enrollment_count: response.enrollment_count || 0,
-//           learningOutcomes: response.learningOutcomes || [
-//             "Understand core concepts",
-//             "Apply skills in projects",
-//             "Master best practices",
-//           ],
-//           modules: response.modules || [
-//             { id: 1, title: "Introduction", lessons: 5, duration: "1h 30m" },
-//             { id: 2, title: "Core Concepts", lessons: 8, duration: "2h 15m" },
-//             { id: 3, title: "Advanced Topics", lessons: 6, duration: "1h 45m" },
-//           ],
-//           instructorInfo: {
-//             name: response.instructor_name || "Unknown Instructor",
-//             bio: response.instructor_bio || "Experienced instructor in the field.",
-//             rating: response.instructor_rating || 4.5,
-//             students: response.instructor_students || 1000,
-//             courses: response.instructor_courses || 5,
-//             avatar: response.instructor_avatar || "https://placehold.co/100x100/18181b/ffffff?text=Instructor",
-//           },
-//         });
-//       } catch (err) {
-//         console.error("API Error fetching course:", err);
-//         setError(
-//           err.response?.status === 404
-//             ? "Course not found."
-//             : "Failed to load course details. Please try again later."
-//         );
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     fetchCourseDetails();
-//   }, [id]);
-
-//   // --- Check Enrollment Status Effect ---
-//   useEffect(() => {
-//     const checkEnrollmentStatus = async () => {
-//       // Crucial: Reset state at the beginning of the check
-//       setCheckingEnrollment(true);
-//       setIsEnrolled(false); // Assume not enrolled until confirmed
-
-//       if (!isAuthenticated || !user?.id || !id) {
-//         // If any prerequisite is missing, we're not enrolled and done checking
-//         setCheckingEnrollment(false);
-//         return;
-//       }
-
-//       try {
-//         const token = localStorage.getItem("token");
-//         // Make sure the endpoint `/api/users/is-enrolled/${id}` exists on your backend
-//         const response = await apiFetch(
-//           `http://localhost:5000/api/users/is-enrolled/${id}`,
-//           {}, // Options
-//           token  // Pass token for authentication
-//         );
-//         // Assuming the backend returns { isEnrolled: true/false }
-//         setIsEnrolled(response.isEnrolled);
-//       } catch (err) {
-//         console.error("Error checking enrollment status:", err);
-//         // On error (e.g., network issue, 404 if endpoint missing), assume not enrolled
-//         // Optionally set a specific error message if needed
-//         // setError("Could not verify enrollment status.");
-//         setIsEnrolled(false);
-//       } finally {
-//         // Always stop checking when the API call finishes (success or error)
-//         setCheckingEnrollment(false);
-//       }
-//     };
-
-//     checkEnrollmentStatus();
-//   }, [isAuthenticated, user?.id, id]); // Re-run when auth state, user ID, or course ID changes
-
-
-//   const handleEnroll = async () => {
-//     // if (!isAuthenticated) {
-//     //   navigate("/signin");
-//     //   return;
-//     // }
-//     if (!user?.id) {
-//       setError("User information is missing. Please sign in again.");
-//       return;
-//     }
-//     // Open the modal to collect requirements instead of enrolling directly
-//     setIsModalOpen(true);
-//   };
-
-//   // --- Handle Modal Form Changes ---
-//   const handleRequirementChange = (e) => {
-//     const { name, value } = e.target;
-//     setRequirements(prev => ({ ...prev, [name]: value }));
-//   };
-
-//   // --- Handle Actual Enrollment after Modal ---
-//   const confirmEnrollment = async () => {
-//     if ( !user?.id || !id) return;
-
-//     setIsEnrolling(true);
-//     setError(""); // Clear previous errors
-//     try {
-//       const token = localStorage.getItem("token");
-
-//       // 1. Submit Requirements (Optional: Create an endpoint for this if you want to store them)
-//       // For now, we'll just log them or handle them client-side
-//       console.log("Enrollment Requirements Submitted:", requirements);
-//       // Example API call to store requirements (if backend endpoint exists):
-//       // await apiPost('http://localhost:5000/api/users/enrollment-requirements', { course_id: parseInt(id), ...requirements }, token);
-
-//       // 2. Enroll the user
-//       await apiPost(
-//         "http://localhost:5000/api/users/enroll",
-//         { user_id: user.id, course_id: parseInt(id, 10) },
-//         token
-//       );
-
-//       // 3. Update local state
-//       setIsEnrolled(true);
-//       alert("Successfully enrolled in the course!");
-//       setIsModalOpen(false); // Close the modal
-//       setRequirements({ system: "", timeCommitment: "", goals: "" }); // Reset form
-//       // Optionally navigate to dashboard or learning page
-//       // navigate("/dashboard");
-//     } catch (err) {
-//       console.error("Enrollment Error:", err);
-//       if (err.response?.status === 409) { // Assuming backend sends 409 for conflicts
-//         setError("You are already enrolled in this course.");
-//         setIsEnrolled(true); // Set state to enrolled even if API reports conflict
-//         setIsModalOpen(false); // Close modal
-//       } else {
-//         setError("Failed to enroll in the course. Please try again.");
-//       }
-//     } finally {
-//       setIsEnrolling(false);
-//     }
-//   };
-
-//   // --- Close Modal Handler ---
-//   const closeModal = () => {
-//     setIsModalOpen(false);
-//     setRequirements({ system: "", timeCommitment: "", goals: "" }); // Reset form on close
-//     setError(""); // Clear error on close
-//   };
-
-//   if (loading) {
-//     return (
-//       <div className="max-w-7xl mx-auto px-4 py-8">
-//         <div className="text-center py-12">
-//           <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-//           <p className="mt-4 text-zinc-400">Loading course details...</p>
-//         </div>
-//       </div>
-//     );
-//   }
-//   if (error && !loading) { // Show error if not loading
-//     return (
-//       <div className="max-w-7xl mx-auto px-4 py-8">
-//         <div className="bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-center">
-//           {error}
-//         </div>
-//       </div>
-//     );
-//   }
-//   if (!course) {
-//     return (
-//       <div className="max-w-7xl mx-auto px-4 py-8">
-//         <div className="text-center py-12">
-//           <BookOpen className="h-12 w-12 text-zinc-600 mx-auto" />
-//           <h3 className="mt-4 text-lg font-medium">Course not found</h3>
-//           <p className="mt-1 text-zinc-500">The course you are looking for does not exist.</p>
-//           <Link
-//             to="/courses"
-//             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 mt-6"
-//           >
-//             Browse Courses
-//           </Link>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   const priceDisplay = course.access_type === "free" ? (
-//     <span className="text-2xl font-bold text-green-500">Free</span>
-//   ) : (
-//     <p className="text-2xl font-bold">
-//       $
-//       {typeof course.price === "number"
-//         ? course.price.toFixed(2)
-//         : parseFloat(course.price) && !isNaN(parseFloat(course.price))
-//           ? parseFloat(course.price).toFixed(2)
-//           : "0.00"}
-//     </p>
-//   );
-
-//   const tabs = [
-//     { id: "overview", name: "Overview" },
-//     { id: "curriculum", name: "Curriculum" },
-//     { id: "instructor", name: "Instructor" },
-//   ];
-
-//   return (
-//     <div className="max-w-7xl mx-auto px-4 py-8">
-//       {/* Breadcrumbs */}
-//       <nav className="flex mb-6 text-sm text-zinc-400">
-//         <Link to="/courses" className="hover:text-indigo-400">Courses</Link>
-//         <span className="mx-2">/</span>
-//         <span className="text-zinc-200 truncate max-w-md">{course.title}</span>
-//       </nav>
-
-//       {/* Course Header */}
-//       <div className="bg-zinc-800 rounded-xl overflow-hidden mb-8">
-//         <div className="md:flex">
-//           <div className="md:w-2/3">
-//             {course.thumbnail ? (
-//               <img
-//                 src={course.thumbnail}
-//                 alt={course.title}
-//                 className="w-full h-64 md:h-80 object-cover"
-//                 onError={(e) => {
-//                   e.target.src = "https://placehold.co/1200x800/18181b/ffffff?text=Course+Image";
-//                 }}
-//               />
-//             ) : (
-//               <div className="bg-zinc-700 border-2 border-dashed w-full h-64 md:h-80 flex items-center justify-center">
-//                 <span className="text-zinc-500">No Image Available</span>
-//               </div>
-//             )}
-//           </div>
-//           <div className="p-6 md:w-1/3">
-//             <div className="flex items-center bg-indigo-500/20 text-indigo-400 text-xs font-semibold px-2 py-1 rounded mb-3">
-//               {course.subject || "General"}
-//             </div>
-//             <h1 className="text-2xl font-bold mb-2">{course.title}</h1>
-//             <p className="text-zinc-300 mb-4">
-//               By <span className="font-medium">{course.instructor_name}</span>
-//             </p>
-//             <div className="flex items-center mb-4">
-//               <div className="flex items-center bg-amber-500/20 text-amber-400 text-sm px-2 py-1 rounded">
-//                 <Star size={14} className="fill-current" />
-//                 <span className="ml-1 font-medium">{course.rating.toFixed(1)}</span>
-//               </div>
-//               <div className="flex items-center text-sm text-zinc-400 ml-3">
-//                 <Users size={16} className="mr-1" />
-//                 <span>{(course.enrollment_count / 1000).toFixed(1)}k students</span>
-//               </div>
-//             </div>
-//             <div className="flex items-center text-sm text-zinc-400 mb-6">
-//               <Clock size={16} className="mr-1" />
-//               <span>
-//                 {course.duration || "N/A"} • {course.level || "Beginner"}
-//               </span>
-//             </div>
-//             {isAuthenticated ? (
-//               <div className="flex items-center justify-between mb-4">
-//                 {priceDisplay}
-//                 <button
-//                   onClick={handleEnroll} // Opens modal now
-//                   disabled={  isEnrolling } // Disable if enrolled, checking, or enrolling
-//                   className={`py-2 px-6 rounded-lg font-medium transition duration-300 ${checkingEnrollment
-//                       ? "bg-indigo-400 cursor-not-allowed" // While checking
-//                       : isEnrolling
-//                         ? "bg-indigo-400 cursor-not-allowed" // While enrolling (in modal)
-//                         : isEnrolled
-//                           ? "bg-green-600 cursor-not-allowed" // After enrolled
-//                           : "bg-indigo-600 hover:bg-indigo-700 text-white" // Default state
-//                     }`}
-//                 >
-//                   {/* --- Improved Button Text Logic --- */}
-//                   {checkingEnrollment ? "Checking..." : isEnrolling ? "Enrolling..." : isEnrolled ? "Enrolled" : "Enroll Now"}
-//                 </button>
-//               </div>
-//             ) : (
-//               <div className="bg-zinc-900 rounded-lg p-4 mb-4">
-//                 <p className="text-center text-zinc-300 mb-3">Sign in to enroll in this course</p>
-//                 <Link
-//                   to="/signin"
-//                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium text-center block"
-//                 >
-//                   Sign In to Enroll
-//                 </Link>
-//               </div>
-//             )}
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* Tabs */}
-//       <div className="border-b border-zinc-700 mb-8">
-//         <nav className="flex space-x-8">
-//           {tabs.map((tab) => (
-//             <button
-//               key={tab.id}
-//               onClick={() => setActiveTab(tab.id)}
-//               className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
-//                 ? "border-indigo-500 text-indigo-400"
-//                 : "border-transparent text-zinc-400 hover:text-zinc-300 hover:border-zinc-300"
-//                 }`}
-//             >
-//               {tab.name}
-//             </button>
-//           ))}
-//         </nav>
-//       </div>
-
-//       {/* Tab Content */}
-//       <div>
-//         {activeTab === "overview" && (
-//           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-//             <div className="lg:col-span-2">
-//               <h2 className="text-xl font-bold mb-4">Description</h2>
-//               <p className="text-zinc-300 mb-8">{course.description || "No description available."}</p>
-
-//               {/* --- Conditional Material Preview Section --- */}
-//               {/* Only render if we are sure the user is enrolled */}
-//               {isEnrolled && course?.material_url && (
-//                 <div className="mt-8">
-//                   <h2 className="text-xl font-bold mb-4 flex items-center">
-//                     {materialType === "pdf" && <FileText className="mr-2" />}
-//                     {(materialType === "video" || materialType === "youtube") && (
-//                       <Video className="mr-2" />
-//                     )}
-//                     Preview Material
-//                   </h2>
-//                   <div className="bg-zinc-800 rounded-xl p-4 min-h-[500px] relative"> {/* Adjusted min height */}
-//                     {materialType === "pdf" ? (
-//                       <embed
-//                         src={`${course.material_url}#toolbar=0&navpanes=0&scrollbar=0`}
-//                         type="application/pdf"
-//                         width="100%"
-//                         height="100%"
-//                         title={`Preview of ${course.title}`}
-//                         className="rounded-lg border border-zinc-700 absolute inset-0"
-//                       />
-//                     ) : materialType === "youtube" ? (
-//                       (() => {
-//                         const videoIdMatch = course.material_url.match(
-//                           /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
-//                         );
-//                         const videoId = videoIdMatch ? videoIdMatch[1] : null;
-//                         return videoId ? (
-//                           <div className="w-full h-full absolute inset-0">
-//                             <iframe
-//                               src={`https://www.youtube.com/embed/${videoId}`}
-//                               title={`YouTube video player for ${course.title}`}
-//                               frameBorder="0"
-//                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-//                               allowFullScreen
-//                               width="100%"
-//                               height="100%"
-//                               className="rounded-lg"
-//                             ></iframe>
-//                           </div>
-//                         ) : (
-//                           <p className="text-zinc-400 absolute inset-0 flex items-center justify-center">Could not load YouTube preview.</p>
-//                         );
-//                       })()
-//                     ) : materialType === "video" ? (
-//                       <div className="w-full h-full absolute inset-0 flex items-center justify-center"> {/* Ensure video container fills */}
-//                         <video
-//                           src={course.material_url}
-//                           controls
-//                           className="w-full h-full rounded-lg max-w-full max-h-full" // Prevent overflow
-//                           title={`Video preview for ${course.title}`}
-//                         >
-//                           Your browser does not support the video tag.
-//                         </video>
-//                       </div>
-//                     ) : (
-//                       <p className="text-zinc-300 absolute inset-0 flex items-center justify-center">
-//                         Preview not available.{" "}
-//                         <a
-//                           href={course.material_url}
-//                           target="_blank"
-//                           rel="noopener noreferrer"
-//                           className="text-indigo-400 hover:underline ml-1"
-//                         >
-//                           View material
-//                         </a>
-//                       </p>
-//                     )}
-//                   </div>
-//                 </div>
-//               )}
-//               {/* --- End Conditional Material Preview Section --- */}
-
-//               <h2 className="text-xl font-bold mb-4 mt-8">What you'll learn</h2>
-//               <ul className="space-y-3 mb-8">
-//                 {course.learningOutcomes.map((outcome, index) => (
-//                   <li key={index} className="flex items-start">
-//                     <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
-//                     <span className="text-zinc-300">{outcome}</span>
-//                   </li>
-//                 ))}
-//               </ul>
-//               <h2 className="text-xl font-bold mb-4">Requirements</h2>
-//               <ul className="space-y-2">
-//                 <li className="flex items-start">
-//                   <div className="h-2 w-2 rounded-full bg-indigo-500 mt-2 mr-3"></div>
-//                   <span className="text-zinc-300">Basic knowledge of related concepts</span>
-//                 </li>
-//                 <li className="flex items-start">
-//                   <div className="h-2 w-2 rounded-full bg-indigo-500 mt-2 mr-3"></div>
-//                   <span className="text-zinc-300">Computer with internet access</span>
-//                 </li>
-//               </ul>
-//             </div>
-//             <div>
-//               <div className="bg-zinc-800 rounded-xl p-6 sticky top-24">
-//                 <h3 className="font-bold text-lg mb-4">Course Features</h3>
-//                 <ul className="space-y-4">
-//                   <li className="flex items-center">
-//                     <Play className="h-5 w-5 text-indigo-500 mr-3" />
-//                     <span className="text-zinc-300">{course.modules?.length || 0} modules</span>
-//                   </li>
-//                   <li className="flex items-center">
-//                     <Download className="h-5 w-5 text-indigo-500 mr-3" />
-//                     <span className="text-zinc-300">Downloadable resources</span>
-//                   </li>
-//                   <li className="flex items-center">
-//                     <Award className="h-5 w-5 text-indigo-500 mr-3" />
-//                     <span className="text-zinc-300">Certificate of completion</span>
-//                   </li>
-//                   <li className="flex items-center">
-//                     <Clock className="h-5 w-5 text-indigo-500 mr-3" />
-//                     <span className="text-zinc-300">Full lifetime access</span>
-//                   </li>
-//                 </ul>
-//               </div>
-//             </div>
-//           </div>
-//         )}
-//         {activeTab === "curriculum" && (
-//           <div>
-//             <h2 className="text-xl font-bold mb-6">Course Curriculum</h2>
-//             {course.modules && course.modules.length > 0 ? (
-//               <div className="space-y-4">
-//                 {course.modules.map((module) => (
-//                   <div key={module.id} className="bg-zinc-800 rounded-xl p-5">
-//                     <h3 className="font-bold text-lg">Module {module.id}: {module.title}</h3>
-//                     <p className="text-zinc-400 text-sm mt-1">
-//                       {module.lessons} lessons • {module.duration}
-//                     </p>
-//                   </div>
-//                 ))}
-//               </div>
-//             ) : (
-//               <div className="text-center py-8">
-//                 <BookOpen className="h-12 w-12 text-zinc-600 mx-auto" />
-//                 <h3 className="mt-4 text-lg font-medium">Curriculum not available</h3>
-//                 <p className="mt-1 text-zinc-500">The curriculum is coming soon.</p>
-//               </div>
-//             )}
-//           </div>
-//         )}
-//         {activeTab === "instructor" && (
-//           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-//             <div className="md:col-span-1">
-//               <div className="bg-zinc-800 rounded-xl p-6 text-center">
-//                 <img
-//                   src={course.instructorInfo.avatar}
-//                   alt={course.instructorInfo.name}
-//                   className="h-24 w-24 rounded-full mx-auto mb-4 object-cover"
-//                   onError={(e) => {
-//                     e.target.src = "https://placehold.co/100x100/18181b/ffffff?text=Instructor";
-//                   }}
-//                 />
-//                 <h3 className="font-bold text-lg">{course.instructorInfo.name}</h3>
-//                 <p className="text-zinc-400 text-sm mb-4">Course Instructor</p>
-//                 <div className="flex justify-center space-x-4">
-//                   <div className="text-center">
-//                     <p className="font-bold">{course.instructorInfo.rating.toFixed(1)}</p>
-//                     <p className="text-xs text-zinc-400">Rating</p>
-//                   </div>
-//                   <div className="text-center">
-//                     <p className="font-bold">{(course.instructorInfo.students / 1000).toFixed(1)}k</p>
-//                     <p className="text-xs text-zinc-400">Students</p>
-//                   </div>
-//                   <div className="text-center">
-//                     <p className="font-bold">{course.instructorInfo.courses}</p>
-//                     <p className="text-xs text-zinc-400">Courses</p>
-//                   </div>
-//                 </div>
-//               </div>
-//             </div>
-//             <div className="md:col-span-2">
-//               <h2 className="text-xl font-bold mb-4">About the Instructor</h2>
-//               <p className="text-zinc-300">{course.instructorInfo.bio}</p>
-//             </div>
-//           </div>
-//         )}
-//       </div>
-
-//       {/* --- Enrollment Requirements Modal --- */}
-//       {isModalOpen && (
-//         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-//           <div className="bg-zinc-800 rounded-xl p-6 w-full max-w-md relative">
-//             <button
-//               onClick={closeModal}
-//               className="absolute top-4 right-4 text-zinc-400 hover:text-white"
-//               aria-label="Close"
-//             >
-//               <X size={20} />
-//             </button>
-//             <h2 className="text-xl font-bold mb-4">Enrollment Requirements</h2>
-//             <p className="text-zinc-400 mb-4">Please provide the following information to enroll:</p>
-//             {error && ( // Display error inside modal if present
-//               <div className="bg-red-500/20 border border-red-500/30 text-red-400 px-3 py-2 rounded-lg text-sm mb-4">
-//                 {error}
-//               </div>
-//             )}
-//             <form onSubmit={(e) => { e.preventDefault(); confirmEnrollment(); }}>
-//               <div className="mb-4">
-//                 <label htmlFor="system" className="block text-sm font-medium text-zinc-300 mb-1">
-//                   System/Software Access
-//                 </label>
-//                 <input
-//                   type="text"
-//                   id="system"
-//                   name="system"
-//                   value={requirements.system}
-//                   onChange={handleRequirementChange}
-//                   placeholder="e.g., Python 3.8+, VS Code"
-//                   className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
-//                   required
-//                 />
-//               </div>
-//               <div className="mb-4">
-//                 <label htmlFor="timeCommitment" className="block text-sm font-medium text-zinc-300 mb-1">
-//                   Weekly Time Commitment
-//                 </label>
-//                 <select
-//                   id="timeCommitment"
-//                   name="timeCommitment"
-//                   value={requirements.timeCommitment}
-//                   onChange={handleRequirementChange}
-//                   className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
-//                   required
-//                 >
-//                   <option value="">Select...</option>
-//                   <option value="1-2 hours">1-2 hours</option>
-//                   <option value="3-5 hours">3-5 hours</option>
-//                   <option value="5+ hours">5+ hours</option>
-//                 </select>
-//               </div>
-//               <div className="mb-6">
-//                 <label htmlFor="goals" className="block text-sm font-medium text-zinc-300 mb-1">
-//                   Learning Goals
-//                 </label>
-//                 <textarea
-//                   id="goals"
-//                   name="goals"
-//                   value={requirements.goals}
-//                   onChange={handleRequirementChange}
-//                   placeholder="What do you hope to achieve in this course?"
-//                   rows="3"
-//                   className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
-//                   required
-//                 ></textarea>
-//               </div>
-//               <div className="flex justify-end space-x-3">
-//                 <button
-//                   type="button"
-//                   onClick={closeModal}
-//                   className="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white border border-zinc-600 rounded-lg hover:bg-zinc-700 transition"
-//                   disabled={isEnrolling}
-//                 >
-//                   Cancel
-//                 </button>
-//                 <button
-//                   type="submit"
-//                   disabled={isEnrolling}
-//                   className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition ${isEnrolling
-//                       ? "bg-indigo-400 cursor-not-allowed"
-//                       : "bg-indigo-600 hover:bg-indigo-700"
-//                     }`}
-//                 >
-//                   {isEnrolling ? "Enrolling..." : "Confirm Enrollment"}
-//                 </button>
-//               </div>
-//             </form>
-//           </div>
-//         </div>
-//       )}
-//       {/* --- End Enrollment Requirements Modal --- */}
-//     </div>
-//   );
-// };
-
-// export default CourseDetail;
