@@ -1,18 +1,19 @@
-// pages/Profile.jsx
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Added useNavigate
 import { User, Mail, Phone, MapPin, Calendar } from 'lucide-react';
-import { useAuth } from "../src/contexts/AuthContext"; // Ensure correct path
-import CourseCard from "../component/CourseCard"; // Ensure correct path
+import { useAuth } from "../src/contexts/AuthContext";
+import CourseCard from "../component/CourseCard";
 
 const Profile = () => {
   const { user } = useAuth();
   const userId = user?.id;
   const [profile, setProfile] = useState(null);
   const [enrolledCourses, setEnrolledCourses] = useState([]);
-  const [teacherCourses, setTeacherCourses] = useState([]); // New state for teacher courses
+  const [teacherCourses, setTeacherCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [errorDelete, setErrorDelete] = useState(""); // New state for delete errors
+  const navigate = useNavigate(); // For redirection after deletion
 
   useEffect(() => {
     if (!userId) {
@@ -24,14 +25,12 @@ const Profile = () => {
       setLoading(true);
       setError("");
       try {
-        // Fetch user profile data
         const userResponse = await fetch(`http://localhost:5000/api/users/profile/${userId}`);
         if (!userResponse.ok) {
           throw new Error(`HTTP error! status: ${userResponse.status}`);
         }
         const userData = await userResponse.json();
 
-        // Fetch enrolled courses if user is a student
         let enrolledData = [];
         let teacherData = [];
         const isStudent = userData?.role !== 'teacher';
@@ -43,7 +42,6 @@ const Profile = () => {
           enrolledData = await enrolledResponse.json();
           enrolledData = Array.isArray(enrolledData.enrolledCourses) ? enrolledData.enrolledCourses : enrolledData;
         } else {
-          // Fetch courses created by teacher
           const teacherResponse = await fetch(`http://localhost:5000/api/users/course-by-teacher/${userId}`);
           if (!teacherResponse.ok) {
             throw new Error(`HTTP error! status: ${teacherResponse.status}`);
@@ -52,7 +50,6 @@ const Profile = () => {
           teacherData = Array.isArray(teacherData) ? teacherData : [];
         }
 
-        // Update state
         setProfile(userData);
         setEnrolledCourses(Array.isArray(enrolledData) ? enrolledData : []);
         setTeacherCourses(Array.isArray(teacherData) ? teacherData : []);
@@ -66,6 +63,28 @@ const Profile = () => {
 
     fetchData();
   }, [userId]);
+
+  // Handle account deletion
+  const handleDeleteAccount = async () => {
+    setErrorDelete(""); // Clear previous errors
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/delete-user/${userId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+      // Clear localStorage
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      // Redirect to login
+      navigate("/login");
+    } catch (err) {
+      console.error("Error deleting account:", err);
+      setErrorDelete(err.message);
+    }
+  };
 
   if (!userId) {
     return (
@@ -141,13 +160,24 @@ const Profile = () => {
                 <span>Joined: {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : "N/A"}</span>
               </div>
             </div>
-            <div className="mt-6">
+            <div className="mt-6 space-y-4">
               <Link
                 to="/update-profile"
                 className="w-full flex items-center justify-center bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded-lg text-sm font-medium transition duration-300"
               >
                 Edit Profile
               </Link>
+              <button
+                onClick={handleDeleteAccount}
+                className="w-full flex items-center justify-center bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-sm font-medium transition duration-300"
+              >
+                Delete Account
+              </button>
+              {errorDelete && (
+                <div className="bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-center text-sm">
+                  {errorDelete}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -183,7 +213,7 @@ const Profile = () => {
                       key={course.id}
                       course={{
                         ...course,
-                        instructor: profile?.name || "Unknown Instructor", // Use profile name for teacher
+                        instructor: profile?.name || "Unknown Instructor",
                         rating: course.rating || 4.5,
                         students: course.enrollment_count || 0,
                         category: course.subject || course.category || "General",
@@ -245,6 +275,7 @@ export default Profile;
 //   const userId = user?.id;
 //   const [profile, setProfile] = useState(null);
 //   const [enrolledCourses, setEnrolledCourses] = useState([]);
+//   const [teacherCourses, setTeacherCourses] = useState([]); // New state for teacher courses
 //   const [loading, setLoading] = useState(true);
 //   const [error, setError] = useState("");
 
@@ -264,9 +295,10 @@ export default Profile;
 //           throw new Error(`HTTP error! status: ${userResponse.status}`);
 //         }
 //         const userData = await userResponse.json();
-        
+
 //         // Fetch enrolled courses if user is a student
 //         let enrolledData = [];
+//         let teacherData = [];
 //         const isStudent = userData?.role !== 'teacher';
 //         if (isStudent) {
 //           const enrolledResponse = await fetch(`http://localhost:5000/api/users/enrolled-courses/${userId}`);
@@ -275,11 +307,20 @@ export default Profile;
 //           }
 //           enrolledData = await enrolledResponse.json();
 //           enrolledData = Array.isArray(enrolledData.enrolledCourses) ? enrolledData.enrolledCourses : enrolledData;
+//         } else {
+//           // Fetch courses created by teacher
+//           const teacherResponse = await fetch(`http://localhost:5000/api/users/course-by-teacher/${userId}`);
+//           if (!teacherResponse.ok) {
+//             throw new Error(`HTTP error! status: ${teacherResponse.status}`);
+//           }
+//           teacherData = await teacherResponse.json();
+//           teacherData = Array.isArray(teacherData) ? teacherData : [];
 //         }
 
 //         // Update state
 //         setProfile(userData);
 //         setEnrolledCourses(Array.isArray(enrolledData) ? enrolledData : []);
+//         setTeacherCourses(Array.isArray(teacherData) ? teacherData : []);
 //       } catch (err) {
 //         console.error("API Error in Profile:", err);
 //         setError(`Error: ${err.message}`);
@@ -379,9 +420,9 @@ export default Profile;
 //         <div className="lg:col-span-2">
 //           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
 //             <div className="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-//               <p className="text-sm font-medium text-zinc-400">Courses Enrolled</p>
+//               <p className="text-sm font-medium text-zinc-400">{profile?.role === 'teacher' ? 'Courses Created' : 'Courses Enrolled'}</p>
 //               <p className="mt-1 text-2xl font-bold">
-//                 {profile?.role === 'teacher' ? 'N/A' : enrolledCourses.length}
+//                 {profile?.role === 'teacher' ? teacherCourses.length : enrolledCourses.length}
 //               </p>
 //             </div>
 //           </div>
@@ -393,12 +434,30 @@ export default Profile;
 //               </h2>
 //             </div>
 //             {profile?.role === 'teacher' ? (
-//               <div className="text-center py-8">
-//                 <h3 className="mt-4 text-lg font-medium">Instructor View</h3>
-//                 <p className="mt-1 text-zinc-500">
-//                   Visit your <Link to="/dashboard" className="text-indigo-400 hover:underline">Dashboard</Link> to manage your courses.
-//                 </p>
-//               </div>
+//               teacherCourses.length === 0 ? (
+//                 <div className="text-center py-8">
+//                   <h3 className="mt-4 text-lg font-medium">You haven't created any courses</h3>
+//                   <p className="mt-1 text-zinc-500">
+//                     Create a new course in your <Link to="/dashboard" className="text-indigo-400 hover:underline">Dashboard</Link>.
+//                   </p>
+//                 </div>
+//               ) : (
+//                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//                   {teacherCourses.map((course) => (
+//                     <CourseCard
+//                       key={course.id}
+//                       course={{
+//                         ...course,
+//                         instructor: profile?.name || "Unknown Instructor", // Use profile name for teacher
+//                         rating: course.rating || 4.5,
+//                         students: course.enrollment_count || 0,
+//                         category: course.subject || course.category || "General",
+//                         price: course.price || 0
+//                       }}
+//                     />
+//                   ))}
+//                 </div>
+//               )
 //             ) : enrolledCourses.length === 0 ? (
 //               <div className="text-center py-8">
 //                 <h3 className="mt-4 text-lg font-medium">You're not enrolled in any courses</h3>
@@ -424,7 +483,7 @@ export default Profile;
 //                       instructor: course.teacher_name || "Unknown Instructor",
 //                       rating: course.rating || 4.5,
 //                       students: course.enrollment_count || 1200,
-//                       category: course.subject,
+//                       category: course.subject || "General",
 //                       price: course.price || 0
 //                     }}
 //                   />
