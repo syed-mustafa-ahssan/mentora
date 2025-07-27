@@ -66,25 +66,35 @@ const signupUser = async (req, res) => {
 const loginUser = (req, res) => {
   const { email, password } = req.body;
 
-  if (!email || !password)
+  if (!email || !password) {
     return res.status(400).json({ error: 'Email and password required.' });
+  }
 
   db.query('SELECT * FROM user WHERE email = ?', [email], async (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    if (results.length === 0)
+    if (results.length === 0) {
       return res.status(401).json({ error: 'Invalid email or password.' });
+    }
 
     const user = results[0];
     const isMatch = await bcrypt.compare(password, user.password);
 
-    if (!isMatch)
+    if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password.' });
+    }
 
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '1d',
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role }, // Include role in JWT payload
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    res.json({
+      message: 'Login successful',
+      token,
+      id: user.id,
+      role: user.role, // Include role in response
     });
-
-    res.json({ message: 'Login successful', token });
   });
 };
 
@@ -547,4 +557,166 @@ const changePassword = (req, res) => {
   });
 };
 
-module.exports = { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword, isUserEnrolled,getUserProfile };
+const getAllUsersForAdmin = (req, res) => {
+  // 1. Extract User ID from the request token (assuming middleware or utility like updateProfile)
+  const requestingUserId = extractUserIdFromToken(req);
+
+  if (!requestingUserId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+
+  // 2. Check if the requesting user exists and get their role from the database
+  const checkUserRoleSql = 'SELECT role FROM user WHERE id = ?';
+  db.query(checkUserRoleSql, [requestingUserId], (err, results) => {
+    if (err) {
+      console.error("Database error checking user role:", err);
+      return res.status(500).json({ error: 'Failed to verify admin status.' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'User not found.' }); // Shouldn't happen if token is valid
+    }
+
+    const userRole = results[0].role;
+
+    // 3. Authorize: Check if the user's role is 'admin'
+    if (userRole !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Admins only.' });
+    }
+
+    // 4. Authorized: Fetch all users (excluding passwords)
+    const getAllUsersSql = `
+      SELECT id, name, email, role, phone, profile_pic, bio, subject, qualification,
+             experience_years, linkedin, availability, location, created_at
+      FROM user
+      ORDER BY created_at DESC
+    `; // Optional: Add ORDER BY, LIMIT, OFFSET for pagination/search later
+
+    db.query(getAllUsersSql, (err, users) => {
+      if (err) {
+        console.error("Database error fetching all users:", err);
+        return res.status(500).json({ error: 'Failed to fetch users.' });
+      }
+
+      res.json({ users });
+    });
+  });
+};
+const deleteCoursesByTeacher = (req, res) => {
+  // 1. Extract User ID (Admin) from the request token
+  const adminUserId = extractUserIdFromToken(req);
+  if (!adminUserId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+
+  // 2. Get the target teacher's user ID from the request parameters
+  const targetTeacherId = req.params.teacherId;
+
+  if (!targetTeacherId) {
+    return res.status(400).json({ error: 'Teacher ID is required.' });
+  }
+
+  // 3. Check if the requesting user (Admin) exists and get their role
+  const checkAdminRoleSql = 'SELECT role FROM user WHERE id = ?';
+  db.query(checkAdminRoleSql, [adminUserId], (err, results) => {
+    if (err) {
+      console.error("Database error checking admin role:", err);
+      return res.status(500).json({ error: 'Failed to verify admin status.' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Admin user not found.' });
+    }
+
+    const adminRole = results[0].role;
+
+    // 4. Authorize: Check if the requesting user's role is 'admin'
+    if (adminRole !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Admins only.' });
+    }
+
+    // 5. Authorized Admin: Proceed to delete courses by the target teacher ID
+    // IMPORTANT: Consider implications. Deleting courses might affect enrolled students.
+    // You might want to soft-delete or handle enrollments first.
+    // For now, this will perform a hard delete.
+
+    // First, delete related enrollments (optional, but good practice)
+    const deleteEnrollmentsSql = 'DELETE e FROM enrollments e JOIN courses c ON e.course_id = c.id WHERE c.teacher_id = ?';
+    db.query(deleteEnrollmentsSql, [targetTeacherId], (errEnrollments) => {
+      if (errEnrollments) {
+        console.error("Database error deleting enrollments for teacher's courses:", errEnrollments);
+        // Depending on requirements, you might want to return an error here
+        // or continue deleting courses even if enrollments deletion fails.
+        // For robustness, let's log it but attempt to delete courses anyway.
+        // return res.status(500).json({ error: 'Failed to delete related enrollments.' });
+      }
+      // Then, delete the courses themselves
+      const deleteCoursesSql = 'DELETE FROM courses WHERE teacher_id = ?';
+      db.query(deleteCoursesSql, [targetTeacherId], (errCourses, resultCourses) => {
+        if (errCourses) {
+          console.error("Database error deleting courses:", errCourses);
+          return res.status(500).json({ error: 'Failed to delete courses.' });
+        }
+
+        // Respond with the number of courses deleted
+        res.json({ message: `Successfully deleted ${resultCourses.affectedRows} course(s) for teacher ID ${targetTeacherId}.` });
+      });
+    });
+  });
+};
+
+// --- Controller function to GET all courses BY a specific teacher (Admin/Teacher/User) ---
+// Useful for the admin to see what will be deleted
+const getCoursesByTeacherForAdmin = (req, res) => {
+  // 1. Extract User ID (Admin) from the request token
+  const requestingUserId = extractUserIdFromToken(req);
+  if (!requestingUserId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+
+  // 2. Get the target teacher's user ID from the request parameters
+  const targetTeacherId = req.params.teacherId;
+
+  if (!targetTeacherId) {
+    return res.status(400).json({ error: 'Teacher ID is required.' });
+  }
+
+  // 3. Check if the requesting user exists and get their role (Authorization check)
+  const checkUserRoleSql = 'SELECT role FROM user WHERE id = ?';
+  db.query(checkUserRoleSql, [requestingUserId], (err, results) => {
+    if (err) {
+      console.error("Database error checking user role:", err);
+      return res.status(500).json({ error: 'Failed to verify access status.' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Requesting user not found.' });
+    }
+
+    const userRole = results[0].role;
+
+    // 4. Authorize: Check if the requesting user's role is 'admin' OR they are the teacher themselves
+    if (userRole !== 'admin' && parseInt(requestingUserId) !== parseInt(targetTeacherId)) {
+      return res.status(403).json({ error: 'Access denied. Admins or the teacher themselves only.' });
+    }
+
+    // 5. Authorized: Fetch courses by the target teacher ID
+    const sql = `
+      SELECT id, title, subject, description, material_url, teacher_id, access_type, price, thumbnail, level, duration, created_at, updated_at, is_active, status
+      FROM courses
+      WHERE teacher_id = ?
+      ORDER BY created_at DESC
+    `;
+
+    db.query(sql, [targetTeacherId], (err, courses) => {
+      if (err) {
+        console.error("Database error fetching courses by teacher:", err);
+        return res.status(500).json({ error: 'Failed to fetch courses.' });
+      }
+
+      res.json({ courses });
+    });
+  });
+};
+
+module.exports = { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword, isUserEnrolled, getUserProfile, getAllUsersForAdmin, deleteCoursesByTeacher, getCoursesByTeacherForAdmin };

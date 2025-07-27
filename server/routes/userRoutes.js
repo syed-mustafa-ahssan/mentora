@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword, isUserEnrolled, getUserProfile } = require('../controllers/Controller');
+const { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword, isUserEnrolled, getUserProfile, getAllUsersForAdmin, deleteCoursesByTeacher, getCoursesByTeacherForAdmin } = require('../controllers/Controller');
 
 router.post('/signup', signupUser);
 router.post('/login', loginUser);
@@ -18,5 +18,8 @@ router.get('/profile/:userId', getUserProfile);
 router.delete('/delete-user/:id', deleteUser);
 router.put('/update-profile/:id', updateProfile);
 router.put('/change-password', changePassword);
+router.get('/admin/all-users', getAllUsersForAdmin);
+router.delete('/admin/delete-courses-by-teacher/:teacherId', deleteCoursesByTeacher);
+router.get('/admin/courses-by-teacher/:teacherId', getCoursesByTeacherForAdmin);
 
 module.exports = router;

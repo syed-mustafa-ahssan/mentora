@@ -18,6 +18,8 @@ import CourseDetail from "../pages/CourseDetail";
 import Footer from "../component/Footer";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import UpdateProfile from "../pages/UpdateProfile";
+import AdminDashboard from "../pages/AdminDashboard";
+import AdminRoute from "../component/AdminRoute";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -82,6 +84,14 @@ function App() {
                 }
               />
                 <Route path="/update-profile" element={<UpdateProfile />} />
+                <Route
+                path="/admin"
+                element={
+                  <AdminRoute> {/* Use the new AdminRoute guard */}
+                    <AdminDashboard />
+                  </AdminRoute>
+                }
+              />
               {/* Catch all unmatched routes */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -1,4 +1,3 @@
-// pages/SignUp.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../src/contexts/AuthContext";
@@ -13,13 +12,11 @@ const SignUp = () => {
     role: "student",
     phone: "",
     bio: "",
-    // Teacher specific fields
     subject: "",
     qualification: "",
     experience_years: "",
     linkedin: "",
     availability: "",
-    // New fields
     profile_pic: "",
     location: "",
   });
@@ -75,7 +72,6 @@ const SignUp = () => {
         location: formData.location || undefined,
       };
 
-      // Add teacher specific fields if role is teacher
       if (formData.role === "teacher") {
         userData.subject = formData.subject;
         userData.qualification = formData.qualification;
@@ -99,19 +95,16 @@ const SignUp = () => {
       }
 
       // After successful signup, login the user
-      const loginResponse = await fetch(
-        "http://localhost:5000/api/users/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-          }),
-        }
-      );
+      const loginResponse = await fetch("http://localhost:5000/api/users/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
 
       const loginData = await loginResponse.json();
 
@@ -119,14 +112,22 @@ const SignUp = () => {
         throw new Error(loginData.error || "Login failed after signup");
       }
 
-      // Store the token
+      // Store the token and user data
       localStorage.setItem("token", loginData.token);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: loginData.id,
+          role: loginData.role, // Store role from login response
+        })
+      );
+
+      // Login and redirect based on role
       login(loginData.token);
 
-      // Redirect based on role
-      if (formData.role === "admin") {
+      if (loginData.role === "admin") {
         navigate("/admin/dashboard");
-      } else if (formData.role === "teacher") {
+      } else if (loginData.role === "teacher") {
         navigate("/teacher/dashboard");
       } else {
         navigate("/dashboard");
@@ -437,7 +438,10 @@ const SignUp = () => {
               </div>
             </div>
             <div>
-              <label htmlFor="profile_pic" className="block text-sm font-medium text-zinc-300 mb-1">
+              <label
+                htmlFor="profile_pic"
+                className="block text-sm font-medium text-zinc-300 mb-1"
+              >
                 Profile Picture URL
               </label>
               <input
@@ -451,7 +455,10 @@ const SignUp = () => {
               />
             </div>
             <div>
-              <label htmlFor="location" className="block text-sm font-medium text-zinc-300 mb-1">
+              <label
+                htmlFor="location"
+                className="block text-sm font-medium text-zinc-300 mb-1"
+              >
                 Location
               </label>
               <input
