@@ -15,6 +15,7 @@ import Profile from "../pages/Profile";
 import SignIn from "../pages/SignIn";
 import SignUp from "../pages/SignUp";
 import CourseDetail from "../pages/CourseDetail";
+import EditCourse from "../pages/EditCourse";
 import Footer from "../component/Footer";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import UpdateProfile from "../pages/UpdateProfile";
@@ -49,6 +50,11 @@ function App() {
               <Route path="/add-course" element={
                 <ProtectedRoute>
                   <AddCourse />
+                </ProtectedRoute>
+              } />
+              <Route path="/edit-course/:id" element={
+                <ProtectedRoute>
+                  <EditCourse />
                 </ProtectedRoute>
               } />
               <Route

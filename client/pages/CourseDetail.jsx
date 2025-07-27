@@ -110,18 +110,12 @@ const CourseDetail = () => {
       }
 
       try {
-        const token = localStorage.getItem("token");
-        // Fetch enrolled courses using the provided backend API
+        // Use the updated isUserEnrolled endpoint with userId in path and courseId as query parameter
         const response = await apiFetch(
-          `http://localhost:5000/api/users/enrolled-courses/${user.id}`,
-          {},
-          token
+          `http://localhost:5000/api/users/is-enrolled/${user.id}?courseId=${id}`
         );
-        // Check if the current course ID is in the enrolled courses
-        const isCourseEnrolled = response.enrolledCourses.some(
-          (course) => course.id === parseInt(id, 10)
-        );
-        setIsEnrolled(isCourseEnrolled);
+        
+        setIsEnrolled(response.isEnrolled);
       } catch (err) {
         console.error("Error checking enrollment status:", err);
         setIsEnrolled(false); // Assume not enrolled on error

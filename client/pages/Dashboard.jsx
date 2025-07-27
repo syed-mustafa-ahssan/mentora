@@ -18,6 +18,9 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
 
   useEffect(() => {
     if (!isAuthenticated || !userId || !role) {
@@ -41,7 +44,7 @@ const Dashboard = () => {
 
         setCourses(coursesData);
 
-        // Fetch additional stats (mocked for now, replace with backend endpoints if available)
+        // Fetch additional stats
         setStats({
           totalCourses: coursesData.length,
           totalStudents: role === "teacher" ? await fetchTotalStudents(userId) : 0,
@@ -59,20 +62,95 @@ const Dashboard = () => {
     fetchData();
   }, [userId, role, isAuthenticated]);
 
-  // Mock functions for stats (replace with actual backend endpoints)
+  // Mock functions for stats (async declarations added)
   const fetchTotalStudents = async (teacherId) => {
-    // Placeholder: Replace with actual endpoint like /api/users/teacher-stats/:teacherId
-    return 120; // Mock data
+    try {
+      // Placeholder: Replace with actual endpoint
+      return 120; // Mock data
+    } catch (err) {
+      console.error("Error fetching total students:", err);
+      return 0;
+    }
   };
 
   const fetchLearningHours = async (userId) => {
-    // Placeholder: Replace with actual endpoint like /api/users/student-stats/:userId
-    return 42; // Mock data
+    try {
+      // Placeholder: Replace with actual endpoint
+      return 42; // Mock data
+    } catch (err) {
+      console.error("Error fetching learning hours:", err);
+      return 0;
+    }
   };
 
   const fetchCertificates = async (userId) => {
-    // Placeholder: Replace with actual endpoint like /api/users/certificates/:userId
-    return 2; // Mock data
+    try {
+      // Placeholder: Replace with actual endpoint
+      return 2; // Mock data
+    } catch (err) {
+      console.error("Error fetching certificates:", err);
+      return 0;
+    }
+  };
+
+  // Handle course deletion for teachers
+  const handleDeleteCourse = async (courseId) => {
+    if (!window.confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
+      return;
+    }
+
+    setActionLoading(true);
+    setActionError("");
+    setActionSuccess("");
+
+    try {
+      await apiFetch(`http://localhost:5000/api/users/course-delete/${courseId}`, {
+        method: "DELETE",
+      });
+
+      setCourses((prevCourses) => prevCourses.filter((course) => course.id !== courseId));
+      setStats((prev) => ({ ...prev, totalCourses: prev.totalCourses - 1 }));
+      setActionSuccess("Course deleted successfully");
+
+      setTimeout(() => setActionSuccess(""), 3000);
+    } catch (err) {
+      console.error("Error deleting course:", err);
+      setActionError(err.message || "Failed to delete course");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle course subscription cancellation for students
+  const handleCancelSubscription = async (courseId) => {
+    if (!window.confirm("Are you sure you want to cancel your subscription to this course?")) {
+      return;
+    }
+
+    setActionLoading(true);
+    setActionError("");
+    setActionSuccess("");
+
+    try {
+      await apiFetch(`http://localhost:5000/api/users/cancel-subscription/${courseId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ user_id: userId, course_id: courseId }),
+      });
+
+      setCourses((prevCourses) => prevCourses.filter((course) => course.id !== courseId));
+      setStats((prev) => ({ ...prev, totalCourses: prev.totalCourses - 1 }));
+      setActionSuccess("Subscription cancelled successfully");
+
+      setTimeout(() => setActionSuccess(""), 3000);
+    } catch (err) {
+      console.error("Error cancelling subscription:", err);
+      setActionError(err.message || "Failed to cancel subscription");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   if (!isAuthenticated && !loading) {
@@ -119,9 +197,7 @@ const Dashboard = () => {
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">{role === "teacher" ? "Teacher Dashboard" : "Student Dashboard"}</h1>
-        <p className="mt-2 text-zinc-400">
-          Welcome back, {user?.name || "User"}!
-        </p>
+        <p className="mt-2 text-zinc-400">Welcome back, {user?.name || "User"}!</p>
       </div>
 
       {/* Stats Overview */}
@@ -228,21 +304,61 @@ const Dashboard = () => {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courses.map((course) => (
-              <CourseCard
-                key={course.id}
-                course={{
-                  ...course,
-                  instructor: role === "teacher" ? "You" : course.instructor_name || "Unknown Instructor",
-                  rating: course.rating || 4.5,
-                  students: course.enrollment_count || 1200,
-                  category: course.subject,
-                  price: course.price || 0,
-                }}
-              />
-            ))}
-          </div>
+          <>
+            {actionError && (
+              <div className="bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg mb-6">
+                {actionError}
+              </div>
+            )}
+            {actionSuccess && (
+              <div className="bg-green-500/20 border border-green-500/30 text-green-400 px-4 py-3 rounded-lg mb-6">
+                {actionSuccess}
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {courses.map((course) => (
+                <div key={course.id} className="bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-all hover:border-zinc-700">
+                  <CourseCard
+                    course={{
+                      ...course,
+                      instructor: role === "teacher" ? "You" : course.instructor_name || "Unknown Instructor",
+                      rating: course.rating || 4.5,
+                      students: course.enrollment_count || 1200,
+                      category: course.subject,
+                      price: course.price || 0,
+                    }}
+                  />
+                  <div className="px-4 py-3 border-t border-zinc-800 flex justify-end space-x-2">
+                    {role === "teacher" ? (
+                      <>
+                        <Link
+                          to={`/edit-course/${course.id}`}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded transition-colors"
+                        >
+                          Update
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteCourse(course.id)}
+                          disabled={actionLoading}
+                          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors disabled:opacity-50"
+                        >
+                          {actionLoading ? "Deleting..." : "Delete"}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => handleCancelSubscription(course.id)}
+                        disabled={actionLoading}
+                        className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-sm rounded transition-colors disabled:opacity-50"
+                      >
+                        {actionLoading ? "Cancelling..." : "Cancel Subscription"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -259,7 +375,6 @@ const Dashboard = () => {
             </Link>
           </div>
           <div className="space-y-4">
-            {/* Mock data: Replace with actual backend endpoint like /api/users/teacher/:teacherId/activity */}
             {[
               { id: 1, name: "Sarah Johnson", course: "Advanced React", time: "2 hours ago" },
               { id: 2, name: "Michael Chen", course: "JavaScript Basics", time: "1 day ago" },
@@ -294,7 +409,6 @@ const Dashboard = () => {
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Mock data: Replace with actual backend endpoint like /api/users/recommended-courses/:userId */}
             {[
               { id: 1, title: "Python for Beginners", instructor: "John Doe", rating: 4.7, students: 1500, category: "Programming", price: 29.99 },
               { id: 2, title: "Data Science Essentials", instructor: "Jane Smith", rating: 4.8, students: 2000, category: "Data Science", price: 39.99 },

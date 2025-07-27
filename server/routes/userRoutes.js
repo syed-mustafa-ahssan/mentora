@@ -13,7 +13,7 @@ router.delete('/cancel-subscription/:id', cancelSubscription);
 router.get('/course-detail/:id', specificCourse);
 router.post('/enroll', enrollInCourse);
 router.get('/enrolled-courses/:userId', getEnrolledCourses);
-router.get('/is-enrolled/:userId', isUserEnrolled);
+router.get('/is-enrolled/:userId', isUserEnrolled); // Now accepts courseId as query parameter
 router.get('/profile/:userId', getUserProfile);
 router.delete('/delete-user/:id', deleteUser);
 router.put('/update-profile/:id', updateProfile);

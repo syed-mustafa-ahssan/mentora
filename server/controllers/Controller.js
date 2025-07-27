@@ -322,13 +322,13 @@ const getEnrolledCourses = (req, res) => {
   });
 };
 
-// extra function
+// Check if a user is enrolled in a specific course
 const isUserEnrolled = (req, res) => {
-  const userId = req.user?.id; // Assuming you have middleware to attach user info from JWT
-  const { courseId } = req.params;
+  const { userId } = req.params;
+  const courseId = req.query.courseId;
 
   if (!userId) {
-    return res.status(401).json({ error: 'Authentication required.' });
+    return res.status(400).json({ error: 'User ID is required.' });
   }
 
   if (!courseId) {
