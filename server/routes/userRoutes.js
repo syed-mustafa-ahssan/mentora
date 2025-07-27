@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword, isUserEnrolled, getUserProfile, getAllUsersForAdmin, deleteCoursesByTeacher, getCoursesByTeacherForAdmin } = require('../controllers/Controller');
+const { signupUser, loginUser, createCourse, getAllCourses, getCoursesByTeacher, updateCourse, deleteCourse, specificCourse, enrollInCourse, getEnrolledCourses, cancelSubscription, deleteUser, updateProfile, changePassword, isUserEnrolled, getUserProfile, getAllUsersForAdmin, deleteCoursesByTeacher, getCoursesByTeacherForAdmin, getAllEnrollmentsForAdmin, getCourseEnrollmentsForAdmin } = require('../controllers/Controller');
 
 router.post('/signup', signupUser);
 router.post('/login', loginUser);
@@ -21,5 +21,7 @@ router.put('/change-password', changePassword);
 router.get('/admin/all-users', getAllUsersForAdmin);
 router.delete('/admin/delete-courses-by-teacher/:teacherId', deleteCoursesByTeacher);
 router.get('/admin/courses-by-teacher/:teacherId', getCoursesByTeacherForAdmin);
+router.get('/admin/all-enrollments', getAllEnrollmentsForAdmin);
+router.get('/admin/course-enrollments/:courseId', getCourseEnrollmentsForAdmin);
 
 module.exports = router;

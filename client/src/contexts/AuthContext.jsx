@@ -56,7 +56,7 @@ export const AuthProvider = ({ children }) => {
   // Call this function after successfully updating user profile data on the backend
   const triggerUserUpdate = () => {
     // Update the object to trigger re-renders for components depending on it
-    setUserUpdateTrigger(prev => ({ ...prev, timestamp: Date.now() }));
+    setUserUpdateTrigger((prev) => ({ ...prev, timestamp: Date.now() }));
   };
 
   const value = {
