@@ -59,28 +59,29 @@ const CourseDetail = () => {
           {},
           token
         );
+        // Backend now provides comprehensive data
         setCourse({
           ...response,
+          // Use real data from backend, with fallbacks
           instructor_name: response.instructor_name || "Unknown Instructor",
-          rating: response.rating || 4.5,
+          rating: response.rating || 0,
           enrollment_count: response.enrollment_count || 0,
-          learningOutcomes: response.learningOutcomes || [
-            "Understand core concepts",
-            "Apply skills in projects",
-            "Master best practices",
-          ],
-          modules: response.modules || [
-            { id: 1, title: "Introduction", lessons: 5, duration: "1h 30m" },
-            { id: 2, title: "Core Concepts", lessons: 8, duration: "2h 15m" },
-            { id: 3, title: "Advanced Topics", lessons: 6, duration: "1h 45m" },
-          ],
-          instructorInfo: {
+          learningOutcomes: response.learningOutcomes && response.learningOutcomes.length > 0
+            ? response.learningOutcomes
+            : ["Master the fundamental concepts", "Apply knowledge in real projects", "Build practical skills"],
+          prerequisites: response.prerequisites || [],
+          modules: response.modules && response.modules.length > 0
+            ? response.modules.map((m, idx) => ({ ...m, id: idx + 1 }))
+            : [],
+          language: response.language || "English",
+          // Instructor info is now provided by backend
+          instructorInfo: response.instructorInfo || {
             name: response.instructor_name || "Unknown Instructor",
-            bio: response.instructor_bio || "Experienced instructor in the field.",
-            rating: response.instructor_rating || 4.5,
-            students: response.instructor_students || 1000,
-            courses: response.instructor_courses || 5,
-            avatar: response.instructor_avatar || "https://placehold.co/100x100/18181b/ffffff?text=Instructor",
+            bio: "Experienced instructor passionate about teaching.",
+            rating: 0,
+            totalStudents: 0,
+            totalCourses: 0,
+            avatar: "https://ui-avatars.com/api/?name=Instructor&background=4f46e5&color=fff&size=100",
           },
         });
       } catch (err) {
@@ -161,7 +162,7 @@ const CourseDetail = () => {
       // Enroll the user
       await apiPost(
         "http://localhost:5000/api/users/enroll",
-        { user_id: user.id, course_id: parseInt(id, 10) },
+        { user_id: user.id, course_id: id },
         token
       );
 
@@ -236,8 +237,8 @@ const CourseDetail = () => {
       {typeof course.price === "number"
         ? course.price.toFixed(2)
         : parseFloat(course.price) && !isNaN(parseFloat(course.price))
-        ? parseFloat(course.price).toFixed(2)
-        : "0.00"}
+          ? parseFloat(course.price).toFixed(2)
+          : "0.00"}
     </p>
   );
 
@@ -286,11 +287,18 @@ const CourseDetail = () => {
             <div className="flex items-center mb-4">
               <div className="flex items-center bg-amber-500/20 text-amber-400 text-sm px-2 py-1 rounded">
                 <Star size={14} className="fill-current" />
-                <span className="ml-1 font-medium">{course.rating.toFixed(1)}</span>
+                <span className="ml-1 font-medium">{course.rating?.toFixed(1) || 0}</span>
+                {course.total_ratings > 0 && (
+                  <span className="ml-1 text-xs">({course.total_ratings})</span>
+                )}
               </div>
               <div className="flex items-center text-sm text-zinc-400 ml-3">
                 <Users size={16} className="mr-1" />
-                <span>{(course.enrollment_count / 1000).toFixed(1)}k students</span>
+                <span>
+                  {course.enrollment_count >= 1000
+                    ? `${(course.enrollment_count / 1000).toFixed(1)}k`
+                    : course.enrollment_count || 0} students
+                </span>
               </div>
             </div>
             <div className="flex items-center text-sm text-zinc-400 mb-6">
@@ -306,21 +314,20 @@ const CourseDetail = () => {
                   <button
                     onClick={handleEnroll}
                     disabled={checkingEnrollment || isEnrolling || isEnrolled}
-                    className={`py-2 px-6 rounded-lg font-medium transition duration-300 ${
-                      checkingEnrollment || isEnrolling
-                        ? "bg-indigo-400 cursor-not-allowed"
-                        : isEnrolled
+                    className={`py-2 px-6 rounded-lg font-medium transition duration-300 ${checkingEnrollment || isEnrolling
+                      ? "bg-indigo-400 cursor-not-allowed"
+                      : isEnrolled
                         ? "bg-green-600 cursor-not-allowed"
                         : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                    }`}
+                      }`}
                   >
                     {checkingEnrollment
                       ? "Checking..."
                       : isEnrolling
-                      ? "Enrolling..."
-                      : isEnrolled
-                      ? "Enrolled"
-                      : "Enroll Now"}
+                        ? "Enrolling..."
+                        : isEnrolled
+                          ? "Enrolled"
+                          : "Enroll Now"}
                   </button>
                 </div>
               ) : (
@@ -345,7 +352,7 @@ const CourseDetail = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Tabs */}
       <div className="border-b border-zinc-700 mb-8">
         <nav className="flex space-x-8">
@@ -353,11 +360,10 @@ const CourseDetail = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === tab.id
-                  ? "border-indigo-500 text-indigo-400"
-                  : "border-transparent text-zinc-400 hover:text-zinc-300 hover:border-zinc-300"
-              }`}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
+                ? "border-indigo-500 text-indigo-400"
+                : "border-transparent text-zinc-400 hover:text-zinc-300 hover:border-zinc-300"
+                }`}
             >
               {tab.name}
             </button>
@@ -455,16 +461,27 @@ const CourseDetail = () => {
                 ))}
               </ul>
               <h2 className="text-xl font-bold mb-4">Requirements</h2>
-              <ul className="space-y-2">
-                <li className="flex items-start">
-                  <div className="h-2 w-2 rounded-full bg-indigo-500 mt-2 mr-3"></div>
-                  <span className="text-zinc-300">Basic knowledge of related concepts</span>
-                </li>
-                <li className="flex items-start">
-                  <div className="h-2 w-2 rounded-full bg-indigo-500 mt-2 mr-3"></div>
-                  <span className="text-zinc-300">Computer with internet access</span>
-                </li>
-              </ul>
+              {course.prerequisites && course.prerequisites.length > 0 ? (
+                <ul className="space-y-2">
+                  {course.prerequisites.map((prereq, index) => (
+                    <li key={index} className="flex items-start">
+                      <div className="h-2 w-2 rounded-full bg-indigo-500 mt-2 mr-3"></div>
+                      <span className="text-zinc-300">{prereq}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <ul className="space-y-2">
+                  <li className="flex items-start">
+                    <div className="h-2 w-2 rounded-full bg-indigo-500 mt-2 mr-3"></div>
+                    <span className="text-zinc-300">No specific prerequisites required</span>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="h-2 w-2 rounded-full bg-indigo-500 mt-2 mr-3"></div>
+                    <span className="text-zinc-300">Computer with internet access</span>
+                  </li>
+                </ul>
+              )}
             </div>
             <div>
               <div className="bg-zinc-800 rounded-xl p-6 sticky top-24">
@@ -530,15 +547,19 @@ const CourseDetail = () => {
                 <p className="text-zinc-400 text-sm mb-4">Course Instructor</p>
                 <div className="flex justify-center space-x-4">
                   <div className="text-center">
-                    <p className="font-bold">{course.instructorInfo.rating.toFixed(1)}</p>
+                    <p className="font-bold">{course.instructorInfo.rating?.toFixed(1) || 0}</p>
                     <p className="text-xs text-zinc-400">Rating</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-bold">{(course.instructorInfo.students / 1000).toFixed(1)}k</p>
+                    <p className="font-bold">
+                      {course.instructorInfo.totalStudents >= 1000
+                        ? `${(course.instructorInfo.totalStudents / 1000).toFixed(1)}k`
+                        : course.instructorInfo.totalStudents || 0}
+                    </p>
                     <p className="text-xs text-zinc-400">Students</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-bold">{course.instructorInfo.courses}</p>
+                    <p className="font-bold">{course.instructorInfo.totalCourses || 0}</p>
                     <p className="text-xs text-zinc-400">Courses</p>
                   </div>
                 </div>
@@ -631,9 +652,8 @@ const CourseDetail = () => {
                 <button
                   type="submit"
                   disabled={isEnrolling}
-                  className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition ${
-                    isEnrolling ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
-                  }`}
+                  className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition ${isEnrolling ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
+                    }`}
                 >
                   {isEnrolling ? "Enrolling..." : "Confirm Enrollment"}
                 </button>

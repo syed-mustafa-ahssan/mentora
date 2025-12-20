@@ -15,7 +15,11 @@ const AddCourse = () => {
         thumbnail: "",
         level: "beginner", // Default to beginner
         duration: "",
+        language: "English",
     });
+    const [learningOutcomes, setLearningOutcomes] = useState([""]);
+    const [prerequisites, setPrerequisites] = useState([""]);
+    const [modules, setModules] = useState([{ title: "", lessons: "", duration: "", description: "" }]);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [loading, setLoading] = useState(false);
@@ -30,6 +34,33 @@ const AddCourse = () => {
             ...prev,
             [name]: value
         }));
+    };
+
+    // Handle learning outcomes
+    const addLearningOutcome = () => setLearningOutcomes([...learningOutcomes, ""]);
+    const removeLearningOutcome = (index) => setLearningOutcomes(learningOutcomes.filter((_, i) => i !== index));
+    const updateLearningOutcome = (index, value) => {
+        const updated = [...learningOutcomes];
+        updated[index] = value;
+        setLearningOutcomes(updated);
+    };
+
+    // Handle prerequisites
+    const addPrerequisite = () => setPrerequisites([...prerequisites, ""]);
+    const removePrerequisite = (index) => setPrerequisites(prerequisites.filter((_, i) => i !== index));
+    const updatePrerequisite = (index, value) => {
+        const updated = [...prerequisites];
+        updated[index] = value;
+        setPrerequisites(updated);
+    };
+
+    // Handle modules
+    const addModule = () => setModules([...modules, { title: "", lessons: "", duration: "", description: "" }]);
+    const removeModule = (index) => setModules(modules.filter((_, i) => i !== index));
+    const updateModule = (index, field, value) => {
+        const updated = [...modules];
+        updated[index][field] = value;
+        setModules(updated);
     };
 
     // Handle form submission
@@ -56,7 +87,17 @@ const AddCourse = () => {
             ...formData,
             teacher_id: user.id, // Use teacher_id from auth context
             price: formData.access_type === 'paid' ? parseFloat(formData.price) || null : null,
-            duration: formData.duration ? parseFloat(formData.duration) || null : null,
+            duration: formData.duration || null,
+            learningOutcomes: learningOutcomes.filter(o => o.trim() !== ""),
+            prerequisites: prerequisites.filter(p => p.trim() !== ""),
+            modules: modules
+                .filter(m => m.title.trim() !== "")
+                .map(m => ({
+                    title: m.title,
+                    lessons: parseInt(m.lessons) || 0,
+                    duration: m.duration || "0h",
+                    description: m.description || ""
+                })),
         };
 
         try {
@@ -79,9 +120,13 @@ const AddCourse = () => {
                 thumbnail: "",
                 level: "beginner",
                 duration: "",
+                language: "English",
             });
-            // Navigate back to courses page after a delay
-            setTimeout(() => navigate('/courses'), 2000);
+            setLearningOutcomes([""]);
+            setPrerequisites([""]);
+            setModules([{ title: "", lessons: "", duration: "", description: "" }]);
+            // Navigate back to dashboard after a delay
+            setTimeout(() => navigate('/dashboard'), 2000);
         } catch (err) {
             console.error("API Error:", err);
             setError(
@@ -252,6 +297,152 @@ const AddCourse = () => {
                         />
                     </div>
                 )}
+
+                <div>
+                    <label htmlFor="language" className="block text-sm font-medium text-zinc-300 mb-1">
+                        Language
+                    </label>
+                    <input
+                        type="text"
+                        id="language"
+                        name="language"
+                        value={formData.language}
+                        onChange={handleChange}
+                        placeholder="English"
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                </div>
+
+                {/* Learning Outcomes */}
+                <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                        Learning Outcomes (What students will learn)
+                    </label>
+                    {learningOutcomes.map((outcome, index) => (
+                        <div key={index} className="flex items-center mb-2 space-x-2">
+                            <input
+                                type="text"
+                                value={outcome}
+                                onChange={(e) => updateLearningOutcome(index, e.target.value)}
+                                placeholder={`Outcome ${index + 1}`}
+                                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            {learningOutcomes.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={() => removeLearningOutcome(index)}
+                                    className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
+                                >
+                                    Remove
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                    <button
+                        type="button"
+                        onClick={addLearningOutcome}
+                        className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm"
+                    >
+                        + Add Learning Outcome
+                    </button>
+                </div>
+
+                {/* Prerequisites */}
+                <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                        Prerequisites (Optional)
+                    </label>
+                    {prerequisites.map((prereq, index) => (
+                        <div key={index} className="flex items-center mb-2 space-x-2">
+                            <input
+                                type="text"
+                                value={prereq}
+                                onChange={(e) => updatePrerequisite(index, e.target.value)}
+                                placeholder={`Prerequisite ${index + 1}`}
+                                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            {prerequisites.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={() => removePrerequisite(index)}
+                                    className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
+                                >
+                                    Remove
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                    <button
+                        type="button"
+                        onClick={addPrerequisite}
+                        className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm"
+                    >
+                        + Add Prerequisite
+                    </button>
+                </div>
+
+                {/* Modules */}
+                <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                        Course Modules (Curriculum)
+                    </label>
+                    {modules.map((module, index) => (
+                        <div key={index} className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 mb-3">
+                            <div className="flex justify-between items-center mb-3">
+                                <h4 className="font-medium text-zinc-200">Module {index + 1}</h4>
+                                {modules.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => removeModule(index)}
+                                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
+                                    >
+                                        Remove Module
+                                    </button>
+                                )}
+                            </div>
+                            <div className="space-y-3">
+                                <input
+                                    type="text"
+                                    value={module.title}
+                                    onChange={(e) => updateModule(index, 'title', e.target.value)}
+                                    placeholder="Module title"
+                                    className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <input
+                                        type="number"
+                                        value={module.lessons}
+                                        onChange={(e) => updateModule(index, 'lessons', e.target.value)}
+                                        placeholder="Number of lessons"
+                                        min="0"
+                                        className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={module.duration}
+                                        onChange={(e) => updateModule(index, 'duration', e.target.value)}
+                                        placeholder="Duration (e.g., 2h 30m)"
+                                        className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    />
+                                </div>
+                                <textarea
+                                    value={module.description}
+                                    onChange={(e) => updateModule(index, 'description', e.target.value)}
+                                    placeholder="Module description (optional)"
+                                    rows="2"
+                                    className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                ></textarea>
+                            </div>
+                        </div>
+                    ))}
+                    <button
+                        type="button"
+                        onClick={addModule}
+                        className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm"
+                    >
+                        + Add Module
+                    </button>
+                </div>
 
                 <div className="flex justify-end space-x-4">
                     <button
