@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../src/contexts/AuthContext";
 import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { getApiUrl } from "../src/config/api";
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -80,7 +81,7 @@ const SignUp = () => {
         userData.availability = formData.availability;
       }
 
-      const response = await fetch("http://localhost:5000/api/users/signup", {
+      const response = await fetch(getApiUrl("users/signup"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -95,7 +96,7 @@ const SignUp = () => {
       }
 
       // After successful signup, login the user
-      const loginResponse = await fetch("http://localhost:5000/api/users/login", {
+      const loginResponse = await fetch(getApiUrl("users/login"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

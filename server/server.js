@@ -9,36 +9,39 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
-// CORS configuration - allow requests from your Vercel client domain
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  process.env.CLIENT_URL, // Add your Vercel client URL as an environment variable
-];
-
+// CORS configuration - allow all origins in production for now
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.indexOf(origin) !== -1 || !process.env.CLIENT_URL) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: true, // Allow all origins
     credentials: true,
   })
 );
 
 app.use(express.json());
 
-app.use("/api/users", userRoutes);
+// Root route - Hello World
+app.get("/", (req, res) => {
+  res.json({
+    message: "Hello World! Welcome to Mentora API",
+    status: "running",
+    endpoints: {
+      health: "/api",
+      users: "/api/users/*"
+    }
+  });
+});
 
 // Health check endpoint
 app.get("/api", (req, res) => {
   res.json({ message: "Mentora API is running!" });
+});
+
+app.use("/api/users", userRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: err.message || "Something went wrong!" });
 });
 
 // Only start server if not in Vercel serverless environment

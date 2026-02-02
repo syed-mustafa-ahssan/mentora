@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../src/contexts/AuthContext";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { getApiUrl } from "../src/config/api";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -23,7 +24,7 @@ const SignIn = () => {
     e.preventDefault();
 
     try {
-      const response = await fetch("http://localhost:5000/api/users/login", {
+      const response = await fetch(getApiUrl("users/login"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
