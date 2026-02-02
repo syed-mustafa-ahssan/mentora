@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { apiFetch } from "../src/utils/api";
 import { useAuth } from "../src/contexts/AuthContext";
 import CourseCard from "../component/CourseCard";
+import { getApiUrl } from "../src/config/api";
 
 const Home = () => {
   const [courses, setCourses] = useState([]);
@@ -13,7 +14,7 @@ const Home = () => {
 
   useEffect(() => {
     setLoading(true);
-    apiFetch("http://localhost:5000/api/users/get-all-courses")
+    apiFetch(getApiUrl("users/get-all-courses"))
       .then(response => {
         // Ensure we're getting the data correctly
         const courseData = response.data || response;

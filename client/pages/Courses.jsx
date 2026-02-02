@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../src/utils/api";
 import CourseCard from "../component/CourseCard";
+import { getApiUrl } from "../src/config/api";
 
 const Courses = () => {
   const [courses, setCourses] = useState([]);
@@ -13,7 +14,7 @@ const Courses = () => {
   // Fetch courses
   useEffect(() => {
     setLoading(true);
-    apiFetch("http://localhost:5000/api/users/get-all-courses")
+    apiFetch(getApiUrl("users/get-all-courses"))
       .then((response) => {
         const courseData = response.data || response;
         setCourses(Array.isArray(courseData) ? courseData : []);

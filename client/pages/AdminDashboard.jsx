@@ -1,7 +1,7 @@
 // src/components/AdminDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../src/contexts/AuthContext';
 import { apiFetch } from '../src/utils/api';
+import { getApiUrl } from '../src/config/api';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('users');
@@ -38,7 +38,7 @@ const AdminDashboard = () => {
 
       try {
         // Fetch users for stats and users tab
-        const usersResponse = await apiFetch('http://localhost:5000/api/users/admin/all-users');
+        const usersResponse = await apiFetch(getApiUrl('users/admin/all-users'));
         let fetchedUsers = [];
         if (usersResponse && Array.isArray(usersResponse.users)) {
           fetchedUsers = usersResponse.users;
@@ -51,7 +51,7 @@ const AdminDashboard = () => {
         // Fetch courses if on courses tab or for stats
         let fetchedCourses = [];
         if (activeTab === 'courses' || activeTab === 'stats') {
-          const coursesResponse = await apiFetch('http://localhost:5000/api/users/get-all-courses');
+          const coursesResponse = await apiFetch(getApiUrl('users/get-all-courses'));
           fetchedCourses = Array.isArray(coursesResponse) ? coursesResponse : [];
           setCourses(fetchedCourses);
         }
@@ -87,7 +87,7 @@ const AdminDashboard = () => {
     if (!window.confirm(`Are you sure you want to delete the user "${userName}" (ID: ${userId})? This action cannot be undone.`)) return;
 
     try {
-      await apiFetch(`http://localhost:5000/api/users/delete-user/${userId}`, {
+      await apiFetch(getApiUrl(`users/delete-user/${userId}`), {
         method: 'DELETE',
       });
       setUsers(prevUsers => prevUsers.filter(u => u.id !== userId));
@@ -110,11 +110,11 @@ const AdminDashboard = () => {
     if (!window.confirm(`Are you sure you want to delete ALL courses created by "${teacherName}" (ID: ${teacherId})? This action cannot be undone and will affect enrolled students.`)) return;
 
     try {
-      const response = await apiFetch(`http://localhost:5000/api/users/admin/delete-courses-by-teacher/${teacherId}`, {
+      const response = await apiFetch(getApiUrl(`users/admin/delete-courses-by-teacher/${teacherId}`), {
         method: 'DELETE',
       });
       if (activeTab === 'courses') {
-        const coursesResponse = await apiFetch('http://localhost:5000/api/users/get-all-courses');
+        const coursesResponse = await apiFetch(getApiUrl('users/get-all-courses'));
         setCourses(Array.isArray(coursesResponse) ? coursesResponse : []);
         setStats(prev => ({ ...prev, totalCourses: coursesResponse.length }));
       }
@@ -130,7 +130,7 @@ const AdminDashboard = () => {
     if (!window.confirm(`Are you sure you want to delete the course "${courseTitle}" (ID: ${courseId})? This action cannot be undone.`)) return;
 
     try {
-      await apiFetch(`http://localhost:5000/api/users/course-delete/${courseId}`, {
+      await apiFetch(getApiUrl(`users/course-delete/${courseId}`), {
         method: 'DELETE',
       });
       setCourses(prevCourses => prevCourses.filter(c => c.id !== courseId));
@@ -147,7 +147,7 @@ const AdminDashboard = () => {
     if (!window.confirm(`Are you sure you want to change ${userName}'s role to ${newRole}?`)) return;
 
     try {
-      await apiFetch(`http://localhost:5000/api/users/update-profile/${userId}`, {
+      await apiFetch(getApiUrl(`users/update-profile/${userId}`), {
         method: 'PUT',
         body: JSON.stringify({ role: newRole }),
       });
@@ -168,7 +168,7 @@ const AdminDashboard = () => {
   // Handle user profile update
   const handleUpdateUserProfile = async (userId) => {
     try {
-      await apiFetch(`http://localhost:5000/api/users/update-profile/${userId}`, {
+      await apiFetch(getApiUrl(`users/update-profile/${userId}`), {
         method: 'PUT',
         body: JSON.stringify(userEditData),
       });
@@ -186,7 +186,7 @@ const AdminDashboard = () => {
   // Handle course update
   const handleUpdateCourse = async (courseId) => {
     try {
-      await apiFetch(`http://localhost:5000/api/users/course-update/${courseId}`, {
+      await apiFetch(getApiUrl(`users/course-update/${courseId}`), {
         method: 'PUT',
         body: JSON.stringify(editData),
       });
@@ -206,7 +206,7 @@ const AdminDashboard = () => {
     if (!window.confirm(`Are you sure you want to ${isActive ? 'deactivate' : 'activate'} the course (ID: ${courseId})?`)) return;
 
     try {
-      await apiFetch(`http://localhost:5000/api/users/course-update/${courseId}`, {
+      await apiFetch(getApiUrl(`users/course-update/${courseId}`), {
         method: 'PUT',
         body: JSON.stringify({ is_active: !isActive }),
       });
@@ -221,7 +221,7 @@ const AdminDashboard = () => {
   // Handle view course details
   const handleViewCourseDetails = async (courseId) => {
     try {
-      const response = await apiFetch(`http://localhost:5000/api/users/course-detail/${courseId}`);
+      const response = await apiFetch(getApiUrl(`users/course-detail/${courseId}`));
       setSelectedCourse(response);
     } catch (err) {
       console.error('Error fetching course details:', err);

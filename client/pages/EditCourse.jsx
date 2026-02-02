@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../src/contexts/AuthContext";
 import { apiFetch } from "../src/utils/api";
+import { getApiUrl } from "../src/config/api";
 
 const EditCourse = () => {
     const { id } = useParams();
@@ -31,8 +32,8 @@ const EditCourse = () => {
             setInitialLoading(true);
             setError("");
             try {
-                const response = await apiFetch(`http://localhost:5000/api/users/course-detail/${id}`);
-                
+                const response = await apiFetch(getApiUrl(`users/course-detail/${id}`));
+
                 // Populate form with existing course data
                 setFormData({
                     title: response.title || "",
@@ -93,7 +94,7 @@ const EditCourse = () => {
 
         try {
             await apiFetch(
-                `http://localhost:5000/api/users/course-update/${id}`,
+                getApiUrl(`users/course-update/${id}`),
                 {
                     method: 'PUT',
                     body: JSON.stringify(courseData)

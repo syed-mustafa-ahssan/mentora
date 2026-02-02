@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { apiFetch, apiPost } from "../src/utils/api";
 import { useAuth } from "../src/contexts/AuthContext";
+import { getApiUrl } from "../src/config/api";
 
 const CourseDetail = () => {
   const { id } = useParams();
@@ -55,7 +56,7 @@ const CourseDetail = () => {
       try {
         const token = localStorage.getItem("token");
         const response = await apiFetch(
-          `http://localhost:5000/api/users/course-detail/${id}`,
+          getApiUrl(`users/course-detail/${id}`),
           {},
           token
         );
@@ -114,7 +115,7 @@ const CourseDetail = () => {
 
       try {
         const response = await apiFetch(
-          `http://localhost:5000/api/users/is-enrolled/${user.id}?courseId=${id}`
+          getApiUrl(`users/is-enrolled/${user.id}?courseId=${id}`)
         );
         setIsEnrolled(response.isEnrolled);
       } catch (err) {
@@ -161,7 +162,7 @@ const CourseDetail = () => {
 
       // Enroll the user
       await apiPost(
-        "http://localhost:5000/api/users/enroll",
+        getApiUrl("users/enroll"),
         { user_id: user.id, course_id: id },
         token
       );

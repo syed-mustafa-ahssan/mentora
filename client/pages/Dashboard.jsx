@@ -4,6 +4,7 @@ import { BookOpen, Users, Clock, TrendingUp } from "lucide-react";
 import { useAuth } from "../src/contexts/AuthContext";
 import { apiFetch } from "../src/utils/api";
 import CourseCard from "../component/CourseCard";
+import { getApiUrl } from "../src/config/api";
 
 const Dashboard = () => {
   const { isAuthenticated, user } = useAuth();
@@ -35,10 +36,10 @@ const Dashboard = () => {
       try {
         let coursesData = [];
         if (role === "teacher") {
-          const response = await apiFetch(`http://localhost:5000/api/users/course-by-teacher/${userId}`);
+          const response = await apiFetch(getApiUrl(`users/course-by-teacher/${userId}`));
           coursesData = Array.isArray(response) ? response : [];
         } else if (role === "student") {
-          const response = await apiFetch(`http://localhost:5000/api/users/enrolled-courses/${userId}`);
+          const response = await apiFetch(getApiUrl(`users/enrolled-courses/${userId}`));
           coursesData = Array.isArray(response.enrolledCourses) ? response.enrolledCourses : [];
         }
 
@@ -104,7 +105,7 @@ const Dashboard = () => {
     setActionSuccess("");
 
     try {
-      await apiFetch(`http://localhost:5000/api/users/course-delete/${courseId}`, {
+      await apiFetch(getApiUrl(`users/course-delete/${courseId}`), {
         method: "DELETE",
       });
 
@@ -132,7 +133,7 @@ const Dashboard = () => {
     setActionSuccess("");
 
     try {
-      await apiFetch(`http://localhost:5000/api/users/cancel-subscription/${courseId}`, {
+      await apiFetch(getApiUrl(`users/cancel-subscription/${courseId}`), {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

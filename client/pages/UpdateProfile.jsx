@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../src/contexts/AuthContext'; // Adjust path if necessary
 import { apiFetch } from '../src/utils/api'; // Adjust path if necessary
 import { User, Mail, Phone, MapPin, FileText, Link as LinkIcon, Calendar, Save, X } from 'lucide-react'; // Import icons
+import { getApiUrl } from '../src/config/api';
 
 const UpdateProfile = () => {
     const { user, updateUser } = useAuth(); // Assuming updateUser updates the context
@@ -58,7 +59,7 @@ const UpdateProfile = () => {
 
         try {
             // Send PUT request to update profile
-            const response = await apiFetch(`http://localhost:5000/api/users/update-profile/${user.id}`, {
+            const response = await apiFetch(getApiUrl(`users/update-profile/${user.id}`), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -81,7 +82,7 @@ const UpdateProfile = () => {
                 // Update the user context with new data
                 updateUser({ ...user, ...formData }); // Merge updated data
                 // Navigate back to profile after a delay
-                setTimeout(() => navigate('/sign'), 2000);
+                setTimeout(() => navigate('/profile'), 2000);
             } else {
                 // Handle server errors
                 setSuccess('Profile updated successfully!');
@@ -98,7 +99,7 @@ const UpdateProfile = () => {
         } finally {
             setLoading(false);
         }
-    }; 
+    };
 
     if (!user) {
         return (

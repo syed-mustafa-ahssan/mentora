@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { apiPost } from "../src/utils/api";
 import { useAuth } from "../src/contexts/AuthContext";
+import { getApiUrl } from "../src/config/api";
 
 const AddCourse = () => {
     const [formData, setFormData] = useState({
@@ -102,7 +103,7 @@ const AddCourse = () => {
 
         try {
             const response = await apiPost(
-                "http://localhost:5000/api/users/course-upload",
+                getApiUrl("users/course-upload"),
                 courseData,
                 token // Pass the token from useAuth
             );
