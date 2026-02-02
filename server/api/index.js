@@ -1,22 +1,17 @@
 const express = require("express");
-const cors = require("cors");
 require("dotenv").config();
 const connectDB = require("../config/db");
 const userRoutes = require("../routes/userRoutes");
+const corsMiddleware = require("../middleware/cors");
+const errorHandler = require("../middleware/errorHandler");
 
 const app = express();
 
 // Connect to MongoDB
 connectDB();
 
-// CORS configuration - allow all origins in production for now
-app.use(
-  cors({
-    origin: true, // Allow all origins
-    credentials: true,
-  })
-);
-
+// Middleware
+app.use(corsMiddleware);
 app.use(express.json());
 
 // Root route - Hello World
@@ -36,13 +31,11 @@ app.get("/api", (req, res) => {
   res.json({ message: "Mentora API is running!" });
 });
 
+// Routes
 app.use("/api/users", userRoutes);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: err.message || "Something went wrong!" });
-});
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
 // Export the Express app for Vercel serverless
 module.exports = app;
