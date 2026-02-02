@@ -1,8 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const connectDB = require("./config/db");
-const userRoutes = require("./routes/userRoutes");
+const connectDB = require("../config/db");
+const userRoutes = require("../routes/userRoutes");
 
 const app = express();
 
@@ -13,7 +13,7 @@ connectDB();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
-  process.env.CLIENT_URL, // Add your Vercel client URL as an environment variable
+  process.env.CLIENT_URL || "https://your-app.vercel.app", // Update this after deployment
 ];
 
 app.use(
@@ -21,8 +21,8 @@ app.use(
     origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-
-      if (allowedOrigins.indexOf(origin) !== -1 || !process.env.CLIENT_URL) {
+      
+      if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
@@ -41,11 +41,5 @@ app.get("/api", (req, res) => {
   res.json({ message: "Mentora API is running!" });
 });
 
-// Only start server if not in Vercel serverless environment
-if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-}
-
-// Export the app for Vercel serverless
+// Export the Express app for Vercel serverless
 module.exports = app;
